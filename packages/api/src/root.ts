@@ -1,10 +1,14 @@
 import { authRouter } from "./router/auth";
+import { connectionRouter } from "./router/connection";
+import { messageRouter } from "./router/message";
 import { eventRouter } from "./router/event";
 import { userRouter } from "./router/user";
 import { createTRPCRouter } from "./trpc";
 
 export const appRouter = createTRPCRouter({
   auth: authRouter,
+  connection: connectionRouter,
+  message: messageRouter,
   event: eventRouter,
   user: userRouter,
 });
