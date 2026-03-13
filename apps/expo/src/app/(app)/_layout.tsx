@@ -76,6 +76,7 @@ export default function AppLayout() {
           ),
         }}
       />
+      <Tabs.Screen name="create-event" options={{ href: null }} />
       <Tabs.Screen name="post/[id]" options={{ href: null }} />
     </Tabs>
   );
