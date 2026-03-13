@@ -24,7 +24,7 @@
     "expo": "~54.0.20",
     "expo-constants": "~18.0.10",
     "expo-dev-client": "~6.0.16",
-    "expo-glass-effect": "~5 5.0.8",
+    "expo-glass-effect": "~55.0.8",
     "expo-linear-gradient": "~15.0.4",
     "expo-linking": "~8.0.8",
     "expo-router": "~6.0.13",
