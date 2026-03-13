@@ -2,8 +2,8 @@ import type { ConfigContext, ExpoConfig } from "expo/config";
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: "expo",
-  slug: "expo",
+  name: "Relio",
+  slug: "relio",
   scheme: "expo",
   version: "0.1.0",
   orientation: "portrait",
