@@ -12,7 +12,7 @@
     "clean:workspaces": "turbo run clean",
     "auth:generate": "pnpm -F @acme/auth generate",
     "db:generate": "turbo -F @acme/db generate",
-    "db:push": "turbo -F @acme/db push",
+    "db:push": "turbo -F @acme/db push --force",
     "db:studio": "turbo -F @acme/db studio",
     "db:migrate": "turbo -F @acme/db migrate",
     "dev": "turbo watch dev --continue",

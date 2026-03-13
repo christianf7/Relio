@@ -1,16 +1,11 @@
 import type { TRPCRouterRecord } from "@trpc/server";
 import { z } from "zod/v4";
 
-import { CreatePostSchema } from "@acme/db/schema";
-
 import { protectedProcedure, publicProcedure } from "../trpc";
 
 export const postRouter = {
   all: publicProcedure.query(({ ctx }) => {
-    return ctx.db.post.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 10,
-    });
+    return ctx.db.post.findMany();
   }),
 
   byId: publicProcedure
@@ -19,12 +14,6 @@ export const postRouter = {
       return ctx.db.post.findUnique({
         where: { id: input.id },
       });
-    }),
-
-  create: protectedProcedure
-    .input(CreatePostSchema)
-    .mutation(({ ctx, input }) => {
-      return ctx.db.post.create({ data: input });
     }),
 
   delete: protectedProcedure.input(z.string()).mutation(({ ctx, input }) => {
