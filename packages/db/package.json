@@ -27,9 +27,13 @@
     "push": "pnpm with-env prisma db push",
     "studio": "pnpm with-env prisma studio",
     "migrate": "pnpm with-env prisma migrate dev",
+    "seed": "pnpm with-env tsx prisma/seed.ts",
     "postinstall": "prisma generate",
     "typecheck": "tsc --noEmit --emitDeclarationOnly false",
     "with-env": "dotenv -e ../../.env --"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.2",

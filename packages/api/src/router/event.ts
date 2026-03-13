@@ -62,21 +62,33 @@ export const eventRouter = {
 
       if (!event || !currentUser) return [];
 
+      const units = Array.isArray(currentUser.enrolledUnits)
+        ? (currentUser.enrolledUnits as { code: string; university: string }[])
+        : [];
+      const unitCodes = units.map((u) => u.code);
+
       const sharedEventIds = currentUser.upcomingEvents
         .map((e) => e.id)
         .filter((id) => id !== input.id);
 
+      const orConditions = [];
+      if (unitCodes.length > 0) {
+        orConditions.push({
+          enrolledUnits: { array_contains: unitCodes.map((code) => ({ code })) },
+        });
+      }
+      if (sharedEventIds.length > 0) {
+        orConditions.push({
+          upcomingEvents: { some: { id: { in: sharedEventIds } } },
+        });
+      }
+
+      if (orConditions.length === 0) return [];
+
       return ctx.db.user.findMany({
         where: {
           id: { not: ctx.session.user.id },
-          OR: [
-            ...(currentUser.enrolledUnits.length > 0
-              ? [{ enrolledUnits: { hasSome: currentUser.enrolledUnits } }]
-              : []),
-            ...(sharedEventIds.length > 0
-              ? [{ upcomingEvents: { some: { id: { in: sharedEventIds } } } }]
-              : []),
-          ],
+          OR: orConditions,
         },
       });
     }),

@@ -51,6 +51,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "expo-secure-store",
     "expo-web-browser",
     [
+      "expo-camera",
+      {
+        cameraPermission: "Allow Relio to use your camera to scan QR codes.",
+      },
+    ],
+    [
       "expo-splash-screen",
       {
         backgroundColor: "#E4E4E7",

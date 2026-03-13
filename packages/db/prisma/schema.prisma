@@ -19,7 +19,7 @@ model User {
   bio           String?
   socials       Json?
   image         String?
-  enrolledUnits String[] @map("enrolled_units")
+  enrolledUnits Json?    @default("[]") @map("enrolled_units")
   createdAt     DateTime @map("created_at")
   updatedAt     DateTime @map("updated_at")
 

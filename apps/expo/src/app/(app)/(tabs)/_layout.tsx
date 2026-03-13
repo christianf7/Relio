@@ -1,108 +1,53 @@
-import { StyleSheet, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Tabs } from "expo-router";
+import {
+  Icon,
+  Label,
+  NativeTabs,
+  VectorIcon,
+} from "expo-router/unstable-native-tabs";
 
 export default function TabsLayout() {
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: "#FFFFFF",
-        tabBarInactiveTintColor: "rgba(255, 255, 255, 0.35)",
-        tabBarLabelStyle: styles.tabBarLabel,
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Home",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "home" : "home-outline"}
-              size={22}
-              color={color}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="people"
-        options={{
-          title: "People",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "people" : "people-outline"}
-              size={22}
-              color={color}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="scan"
-        options={{
-          title: "",
-          tabBarIcon: () => (
-            <View style={styles.scanButton}>
-              <Ionicons name="scan-outline" size={24} color="#FFFFFF" />
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="events"
-        options={{
-          title: "Events",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "calendar" : "calendar-outline"}
-              size={22}
-              color={color}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "person" : "person-outline"}
-              size={22}
-              color={color}
-            />
-          ),
-        }}
-      />
-    </Tabs>
+    <NativeTabs>
+      <NativeTabs.Trigger name="index">
+        <Icon
+          sf={{ default: "house", selected: "house.fill" }}
+          androidSrc={<VectorIcon family={Ionicons} name="home" />}
+        />
+        <Label>Home</Label>
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="people">
+        <Icon
+          sf={{ default: "person.2", selected: "person.2.fill" }}
+          androidSrc={<VectorIcon family={Ionicons} name="people" />}
+        />
+        <Label>People</Label>
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="scan">
+        <Icon
+          sf="qrcode.viewfinder"
+          androidSrc={<VectorIcon family={Ionicons} name="scan" />}
+        />
+        <Label>Scan</Label>
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="events">
+        <Icon
+          sf="calendar"
+          androidSrc={<VectorIcon family={Ionicons} name="calendar" />}
+        />
+        <Label>Events</Label>
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="profile">
+        <Icon
+          sf={{ default: "person", selected: "person.fill" }}
+          androidSrc={<VectorIcon family={Ionicons} name="person" />}
+        />
+        <Label>Profile</Label>
+      </NativeTabs.Trigger>
+    </NativeTabs>
   );
 }
-
-const styles = StyleSheet.create({
-  tabBar: {
-    backgroundColor: "#0A0A1A",
-    borderTopColor: "rgba(255, 255, 255, 0.06)",
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  tabBarLabel: {
-    fontSize: 10,
-    fontWeight: "500",
-    letterSpacing: 0.2,
-  },
-  scanButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#6C3CE0",
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: -12,
-    shadowColor: "#6C3CE0",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-});
