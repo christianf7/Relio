@@ -70,6 +70,7 @@ model Event {
   location     String
   bannerUrl    String?
   content      String?
+  ticketUrl    String?  @map("ticket_url")
   organisers    User[]   @relation("EventOrganisers")
   participants User[]   @relation("EventParticipants")
   messages     Message[]

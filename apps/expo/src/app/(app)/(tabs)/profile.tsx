@@ -1,7 +1,9 @@
 import { useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
+  Dimensions,
   Image,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -18,6 +20,10 @@ import QRCode from "react-native-qrcode-svg";
 
 import { trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const BANNER_HEIGHT = 220;
+const AVATAR_SIZE = 110;
 
 let GlassView: React.ComponentType<any> | null = null;
 try {
@@ -84,13 +90,16 @@ export default function ProfileScreen() {
     trpc.user.getMe.queryOptions(),
   );
 
-  const fullName = profile?.displayName ?? profile?.name ?? session?.user?.name ?? "User";
+  const fullName =
+    profile?.displayName ?? profile?.name ?? session?.user?.name ?? "User";
   const email = profile?.email ?? session?.user?.email ?? "";
   const imageUrl = profile?.image ?? null;
+  const slug = (profile as any)?.slug ?? null;
 
   const enrolledUnits: EnrolledUnit[] = useMemo(() => {
     if (!profile?.enrolledUnits) return [];
-    if (Array.isArray(profile.enrolledUnits)) return profile.enrolledUnits as EnrolledUnit[];
+    if (Array.isArray(profile.enrolledUnits))
+      return profile.enrolledUnits as EnrolledUnit[];
     return [];
   }, [profile?.enrolledUnits]);
 
@@ -103,13 +112,26 @@ export default function ProfileScreen() {
   const eventsCount = profile?.eventsCount ?? 0;
   const userId = profile?.id ?? session?.user?.id ?? "";
 
+  const socials = useMemo(() => {
+    if (!profile?.socials || typeof profile.socials !== "object") return null;
+    return profile.socials as {
+      githubUrl?: string;
+      linkedInUrl?: string;
+      discordUrl?: string;
+    };
+  }, [profile?.socials]);
+
+  const hasSocials = socials && Object.values(socials).some(Boolean);
+
   const handleSignOut = useCallback(async () => {
     await authClient.signOut();
   }, []);
 
   if (isLoading && !profile) {
     return (
-      <View style={[styles.container, styles.centered, { paddingTop: insets.top }]}>
+      <View
+        style={[styles.container, styles.centered, { paddingTop: insets.top }]}
+      >
         <ActivityIndicator size="large" color="#6C3CE0" />
       </View>
     );
@@ -118,28 +140,86 @@ export default function ProfileScreen() {
   return (
     <View style={styles.container}>
       <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 24 },
-        ]}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Avatar + Name */}
-        <View style={styles.profileHeader}>
-          {imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={styles.avatar} />
-          ) : (
+        {/* Banner + Avatar Hero */}
+        <View style={styles.heroSection}>
+          <LinearGradient
+            colors={["#2D1B69", "#6C3CE0", "#E04882"]}
+            style={styles.banner}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={[styles.decorCircle, { top: -20, right: 60 }]} />
+            <View
+              style={[
+                styles.decorCircle,
+                {
+                  width: 140,
+                  height: 140,
+                  borderRadius: 70,
+                  bottom: -50,
+                  right: -30,
+                  opacity: 0.06,
+                },
+              ]}
+            />
+            <View
+              style={[
+                styles.decorCircle,
+                {
+                  width: 50,
+                  height: 50,
+                  borderRadius: 25,
+                  top: 40,
+                  left: 30,
+                  opacity: 0.12,
+                },
+              ]}
+            />
             <LinearGradient
-              colors={["#6C3CE0", "#E04882"]}
-              style={styles.avatar}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Text style={styles.avatarText}>{getInitials(fullName)}</Text>
-            </LinearGradient>
-          )}
+              colors={["transparent", "rgba(10, 10, 26, 0.6)", "#0A0A1A"]}
+              style={styles.bannerFade}
+            />
+          </LinearGradient>
+
+          {/* Settings button */}
+          <Pressable
+            style={[styles.settingsButton, { top: insets.top + 12 }]}
+            onPress={() => router.push("/(app)/edit-profile" as any)}
+          >
+            <GlassCard style={styles.settingsButtonInner}>
+              <Ionicons name="settings-outline" size={20} color="#FFFFFF" />
+            </GlassCard>
+          </Pressable>
+
+          {/* Avatar overlay */}
+          <View style={styles.avatarWrapper}>
+            {imageUrl ? (
+              <Image source={{ uri: imageUrl }} style={styles.avatar} />
+            ) : (
+              <LinearGradient
+                colors={["#6C3CE0", "#E04882"]}
+                style={styles.avatar}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Text style={styles.avatarText}>{getInitials(fullName)}</Text>
+              </LinearGradient>
+            )}
+            <View style={styles.onlineIndicator} />
+          </View>
+        </View>
+
+        {/* Name + Handle */}
+        <View style={styles.nameSection}>
           <Text style={styles.name}>{fullName}</Text>
-          {email ? <Text style={styles.email}>{email}</Text> : null}
+          {slug ? (
+            <Text style={styles.handle}>@{slug}</Text>
+          ) : email ? (
+            <Text style={styles.handle}>{email}</Text>
+          ) : null}
           {university ? (
             <View style={styles.universityBadge}>
               <Ionicons
@@ -152,119 +232,166 @@ export default function ProfileScreen() {
           ) : null}
         </View>
 
-        {/* Stats */}
-        <GlassCard style={styles.statsCard}>
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{connectionsCount}</Text>
-              <Text style={styles.statLabel}>Connections</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{eventsCount}</Text>
-              <Text style={styles.statLabel}>Events</Text>
-            </View>
-          </View>
-        </GlassCard>
-
-        {/* Edit Profile Button */}
-        <Pressable
-          onPress={() => router.push("/(app)/edit-profile" as any)}
-          style={({ pressed }) => [
-            styles.editButton,
-            pressed && styles.editButtonPressed,
-          ]}
-        >
-          <Ionicons name="pencil-outline" size={16} color="#FFFFFF" />
-          <Text style={styles.editButtonText}>Edit Profile</Text>
-        </Pressable>
-
-        {/* Enrolled Units */}
-        {enrolledUnits.length > 0 ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Courses</Text>
-            <View style={styles.chipContainer}>
-              {enrolledUnits.map((unit, index) => (
-                <View key={`${unit.code}-${index}`} style={styles.chip}>
-                  <Text style={styles.chipText}>{unit.code}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        ) : null}
-
         {/* Bio */}
         {profile?.bio ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>About</Text>
-            <GlassCard style={styles.bioCard}>
-              <Text style={styles.bioText}>{profile.bio}</Text>
-            </GlassCard>
+          <View style={styles.bioSection}>
+            <Text style={styles.bioText}>{profile.bio}</Text>
           </View>
         ) : null}
 
-        {/* QR Code */}
-        {userId ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>My QR Code</Text>
-            <GlassCard style={styles.qrCard}>
-              <View style={styles.qrInner}>
-                <View style={styles.qrBackground}>
-                  <QRCode
-                    value={`relio://connect/${userId}`}
-                    size={180}
-                    backgroundColor="#FFFFFF"
-                    color="#0A0A1A"
-                  />
-                </View>
-                <Text style={styles.qrHint}>
-                  Let others scan this to connect instantly
-                </Text>
-              </View>
-            </GlassCard>
+        {/* Stats Row */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{connectionsCount}</Text>
+            <Text style={styles.statLabel}>connections</Text>
           </View>
-        ) : null}
-
-        {/* Socials */}
-        {profile?.socials &&
-        typeof profile.socials === "object" &&
-        Object.values(profile.socials as Record<string, unknown>).some(Boolean) ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Socials</Text>
-            <View style={styles.socialsRow}>
-              {(profile.socials as { githubUrl?: string; linkedInUrl?: string; discordUrl?: string }).githubUrl ? (
-                <View style={styles.socialChip}>
-                  <Ionicons name="logo-github" size={16} color="#FFFFFF" />
-                  <Text style={styles.socialText}>GitHub</Text>
-                </View>
-              ) : null}
-              {(profile.socials as { githubUrl?: string; linkedInUrl?: string; discordUrl?: string }).linkedInUrl ? (
-                <View style={styles.socialChip}>
-                  <Ionicons name="logo-linkedin" size={16} color="#FFFFFF" />
-                  <Text style={styles.socialText}>LinkedIn</Text>
-                </View>
-              ) : null}
-              {(profile.socials as { githubUrl?: string; linkedInUrl?: string; discordUrl?: string }).discordUrl ? (
-                <View style={styles.socialChip}>
-                  <Ionicons name="logo-discord" size={16} color="#FFFFFF" />
-                  <Text style={styles.socialText}>Discord</Text>
-                </View>
-              ) : null}
-            </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{eventsCount}</Text>
+            <Text style={styles.statLabel}>events</Text>
           </View>
-        ) : null}
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{enrolledUnits.length}</Text>
+            <Text style={styles.statLabel}>courses</Text>
+          </View>
+        </View>
 
-        {/* Sign Out */}
-        <View style={styles.signOutSection}>
+        {/* Edit Profile Button */}
+        <View style={styles.actionRow}>
           <Pressable
-            onPress={handleSignOut}
+            onPress={() => router.push("/(app)/edit-profile" as any)}
             style={({ pressed }) => [
-              styles.signOutButton,
-              pressed && styles.signOutButtonPressed,
+              styles.editButton,
+              pressed && styles.editButtonPressed,
             ]}
           >
-            <Text style={styles.signOutText}>Sign Out</Text>
+            <Ionicons name="pencil-outline" size={16} color="#FFFFFF" />
+            <Text style={styles.editButtonText}>Edit Profile</Text>
           </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.shareButton,
+              pressed && styles.shareButtonPressed,
+            ]}
+          >
+            <Ionicons name="share-outline" size={18} color="#FFFFFF" />
+          </Pressable>
+        </View>
+
+        <View style={styles.contentArea}>
+          {/* Enrolled Units */}
+          {enrolledUnits.length > 0 ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Courses</Text>
+              <View style={styles.chipContainer}>
+                {enrolledUnits.map((unit, index) => (
+                  <View key={`${unit.code}-${index}`} style={styles.chip}>
+                    <Text style={styles.chipText}>{unit.code}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : null}
+
+          {/* Socials */}
+          {hasSocials ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Socials</Text>
+              <View style={styles.socialsGrid}>
+                {socials?.githubUrl ? (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.socialCard,
+                      pressed && styles.socialCardPressed,
+                    ]}
+                    onPress={() => Linking.openURL(socials.githubUrl!)}
+                  >
+                    <Ionicons name="logo-github" size={22} color="#FFFFFF" />
+                    <Text style={styles.socialCardLabel}>GitHub</Text>
+                    <Ionicons
+                      name="open-outline"
+                      size={12}
+                      color="rgba(255,255,255,0.3)"
+                    />
+                  </Pressable>
+                ) : null}
+                {socials?.linkedInUrl ? (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.socialCard,
+                      pressed && styles.socialCardPressed,
+                    ]}
+                    onPress={() => Linking.openURL(socials.linkedInUrl!)}
+                  >
+                    <Ionicons name="logo-linkedin" size={22} color="#0A66C2" />
+                    <Text style={styles.socialCardLabel}>LinkedIn</Text>
+                    <Ionicons
+                      name="open-outline"
+                      size={12}
+                      color="rgba(255,255,255,0.3)"
+                    />
+                  </Pressable>
+                ) : null}
+                {socials?.discordUrl ? (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.socialCard,
+                      pressed && styles.socialCardPressed,
+                    ]}
+                  >
+                    <Ionicons name="logo-discord" size={22} color="#5865F2" />
+                    <Text style={styles.socialCardLabel}>Discord</Text>
+                    <Ionicons
+                      name="open-outline"
+                      size={12}
+                      color="rgba(255,255,255,0.3)"
+                    />
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
+          ) : null}
+
+          {/* QR Code */}
+          {userId ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>My QR Code</Text>
+              <GlassCard style={styles.qrCard}>
+                <View style={styles.qrInner}>
+                  <View style={styles.qrBackground}>
+                    <QRCode
+                      value={`relio://connect/${userId}`}
+                      size={160}
+                      backgroundColor="#FFFFFF"
+                      color="#0A0A1A"
+                    />
+                  </View>
+                  <Text style={styles.qrHint}>
+                    Let others scan this to connect instantly
+                  </Text>
+                </View>
+              </GlassCard>
+            </View>
+          ) : null}
+
+          {/* Sign Out */}
+          <View style={styles.signOutSection}>
+            <Pressable
+              onPress={handleSignOut}
+              style={({ pressed }) => [
+                styles.signOutButton,
+                pressed && styles.signOutButtonPressed,
+              ]}
+            >
+              <Ionicons
+                name="log-out-outline"
+                size={18}
+                color="rgba(255, 255, 255, 0.45)"
+              />
+              <Text style={styles.signOutText}>Sign Out</Text>
+            </Pressable>
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -280,45 +407,100 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  scrollContent: {
-    alignItems: "center",
-    paddingHorizontal: 24,
+
+  heroSection: {
+    position: "relative",
+    height: BANNER_HEIGHT + AVATAR_SIZE / 2,
+    marginBottom: 8,
+  },
+  banner: {
+    height: BANNER_HEIGHT,
+    width: "100%",
+    overflow: "hidden",
+    position: "relative",
+  },
+  bannerFade: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 100,
+  },
+  decorCircle: {
+    position: "absolute",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
   },
 
-  profileHeader: {
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 24,
+  settingsButton: {
+    position: "absolute",
+    right: 20,
+    zIndex: 10,
   },
-  avatar: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+  settingsButtonInner: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 10,
+  },
+
+  avatarWrapper: {
+    position: "absolute",
+    bottom: 0,
+    left: 24,
+    zIndex: 10,
+  },
+  avatar: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 4,
+    borderColor: "#0A0A1A",
   },
   avatarText: {
-    fontSize: 34,
+    fontSize: 38,
     fontWeight: "700",
     color: "#FFFFFF",
+  },
+  onlineIndicator: {
+    position: "absolute",
+    bottom: 6,
+    right: 6,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#34D399",
+    borderWidth: 3,
+    borderColor: "#0A0A1A",
+  },
+
+  nameSection: {
+    paddingHorizontal: 24,
+    gap: 3,
+    marginBottom: 16,
   },
   name: {
-    fontSize: 26,
-    fontWeight: "700",
+    fontSize: 28,
+    fontWeight: "800",
     color: "#FFFFFF",
-    letterSpacing: -0.4,
+    letterSpacing: -0.5,
   },
-  email: {
-    fontSize: 14,
-    color: "rgba(255, 255, 255, 0.45)",
+  handle: {
+    fontSize: 15,
+    color: "rgba(255, 255, 255, 0.4)",
     fontWeight: "400",
   },
   universityBadge: {
     flexDirection: "row",
     alignItems: "center",
+    alignSelf: "flex-start",
     gap: 6,
-    marginTop: 6,
+    marginTop: 8,
     backgroundColor: "rgba(108, 60, 224, 0.15)",
     paddingHorizontal: 14,
     paddingVertical: 6,
@@ -330,48 +512,66 @@ const styles = StyleSheet.create({
     color: "rgba(108, 60, 224, 1)",
   },
 
-  statsCard: {
-    width: "100%",
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
+  bioSection: {
+    paddingHorizontal: 24,
+    marginBottom: 20,
   },
-  statsRow: {
+  bioText: {
+    fontSize: 15,
+    color: "rgba(255, 255, 255, 0.65)",
+    lineHeight: 22,
+    fontWeight: "400",
+  },
+
+  statsContainer: {
     flexDirection: "row",
     alignItems: "center",
+    marginHorizontal: 24,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.07)",
+    paddingVertical: 18,
+    marginBottom: 18,
   },
   statItem: {
     flex: 1,
     alignItems: "center",
-    gap: 4,
+    gap: 2,
   },
   statValue: {
     fontSize: 22,
-    fontWeight: "700",
+    fontWeight: "800",
     color: "#FFFFFF",
   },
   statLabel: {
     fontSize: 12,
-    color: "rgba(255, 255, 255, 0.45)",
+    color: "rgba(255, 255, 255, 0.4)",
     fontWeight: "500",
   },
   statDivider: {
     width: 1,
-    height: 32,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    height: 28,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
   },
 
+  actionRow: {
+    flexDirection: "row",
+    paddingHorizontal: 24,
+    gap: 10,
+    marginBottom: 28,
+  },
   editButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 8,
     backgroundColor: "rgba(108, 60, 224, 0.2)",
-    paddingHorizontal: 22,
-    paddingVertical: 12,
+    paddingVertical: 13,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: "rgba(108, 60, 224, 0.3)",
-    marginBottom: 28,
   },
   editButtonPressed: {
     backgroundColor: "rgba(108, 60, 224, 0.35)",
@@ -381,15 +581,31 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#FFFFFF",
   },
+  shareButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  shareButtonPressed: {
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
+  },
+
+  contentArea: {
+    paddingHorizontal: 24,
+  },
 
   section: {
-    width: "100%",
-    marginBottom: 24,
+    marginBottom: 28,
   },
   sectionTitle: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "600",
-    color: "rgba(255, 255, 255, 0.5)",
+    color: "rgba(255, 255, 255, 0.45)",
     textTransform: "uppercase",
     letterSpacing: 0.8,
     marginBottom: 12,
@@ -414,14 +630,28 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
-  bioCard: {
-    borderRadius: 16,
-    padding: 16,
+  socialsGrid: {
+    gap: 8,
   },
-  bioText: {
+  socialCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  socialCardPressed: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+  },
+  socialCardLabel: {
+    flex: 1,
     fontSize: 15,
-    color: "rgba(255, 255, 255, 0.7)",
-    lineHeight: 22,
+    fontWeight: "500",
+    color: "#FFFFFF",
   },
 
   qrCard: {
@@ -445,38 +675,20 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  socialsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  socialChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  socialText: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: "rgba(255, 255, 255, 0.7)",
-  },
-
   signOutSection: {
     marginTop: 8,
     marginBottom: 8,
+    alignItems: "center",
   },
   signOutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     paddingVertical: 14,
     paddingHorizontal: 32,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: "rgba(255, 255, 255, 0.08)",
     backgroundColor: "rgba(255, 255, 255, 0.04)",
   },
   signOutButtonPressed: {
@@ -485,8 +697,7 @@ const styles = StyleSheet.create({
   signOutText: {
     fontSize: 15,
     fontWeight: "500",
-    color: "rgba(255, 255, 255, 0.5)",
-    textAlign: "center",
+    color: "rgba(255, 255, 255, 0.45)",
   },
 
   glassBase: {

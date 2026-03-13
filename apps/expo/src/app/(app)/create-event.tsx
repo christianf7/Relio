@@ -84,6 +84,7 @@ export default function CreateEventScreen() {
   const [eventTime, setEventTime] = useState(new Date());
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
+  const [ticketUrl, setTicketUrl] = useState("");
   const [bannerUri, setBannerUri] = useState<string | null>(null);
   const [bannerUrl, setBannerUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -104,6 +105,7 @@ export default function CreateEventScreen() {
       setEventTime(d);
       setLocation(existingEvent.location);
       setDescription(existingEvent.content ?? "");
+      setTicketUrl(existingEvent.ticketUrl ?? "");
       if (existingEvent.bannerUrl) {
         setBannerUri(existingEvent.bannerUrl);
         setBannerUrl(existingEvent.bannerUrl);
@@ -202,6 +204,8 @@ export default function CreateEventScreen() {
 
     const finalDate = buildDate();
 
+    const trimmedTicketUrl = ticketUrl.trim() || undefined;
+
     if (isEditing && params.id) {
       updateMutation.mutate(
         {
@@ -212,6 +216,7 @@ export default function CreateEventScreen() {
             location: location.trim(),
             content: description.trim() || undefined,
             bannerUrl: bannerUrl ?? undefined,
+            ticketUrl: trimmedTicketUrl ?? null,
           },
         },
         {
@@ -232,6 +237,7 @@ export default function CreateEventScreen() {
           location: location.trim(),
           content: description.trim() || undefined,
           bannerUrl: bannerUrl ?? undefined,
+          ticketUrl: trimmedTicketUrl,
         },
         {
           onSuccess: () => {
@@ -461,6 +467,23 @@ export default function CreateEventScreen() {
             />
           </FormSection>
 
+          <FormSection label="Ticket Link (Optional)" icon="ticket-outline">
+            <TextInput
+              style={styles.input}
+              placeholder="https://tickets.example.com/your-event"
+              placeholderTextColor="rgba(255, 255, 255, 0.2)"
+              value={ticketUrl}
+              onChangeText={setTicketUrl}
+              keyboardType="url"
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="done"
+            />
+            <Text style={styles.ticketHint}>
+              If provided, attendees will be prompted to get a ticket before joining
+            </Text>
+          </FormSection>
+
           <Pressable
             onPress={handleSubmit}
             disabled={isPending || isUploading}
@@ -644,6 +667,12 @@ const styles = StyleSheet.create({
   textArea: {
     minHeight: 120,
     paddingTop: 14,
+  },
+  ticketHint: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.3)",
+    lineHeight: 16,
+    marginTop: -4,
   },
 
   dateTimeContainer: {

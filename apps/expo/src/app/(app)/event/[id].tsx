@@ -1,8 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
+  Linking,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -56,11 +58,13 @@ function getInitials(name: string): string {
     .slice(0, 2);
 }
 
-const ORGANISER_GRADIENTS: [string, string][] = [
+const AVATAR_GRADIENTS: [string, string][] = [
   ["#6C3CE0", "#E04882"],
   ["#4880E0", "#11998E"],
   ["#E04882", "#FD746C"],
   ["#11998E", "#26D0CE"],
+  ["#2D1B69", "#6C3CE0"],
+  ["#4A1942", "#E04882"],
 ];
 
 export default function EventDetailScreen() {
@@ -81,6 +85,9 @@ export default function EventDetailScreen() {
   const leaveMutation = useMutation(trpc.event.leaveById.mutationOptions());
   const deleteMutation = useMutation(trpc.event.deleteById.mutationOptions());
 
+  const [showAttendees, setShowAttendees] = useState(false);
+  const [showTicketConfirm, setShowTicketConfirm] = useState(false);
+
   const isOrganiser = useMemo(
     () => event?.organisers.some((o) => o.id === userId) ?? false,
     [event, userId],
@@ -91,10 +98,9 @@ export default function EventDetailScreen() {
     [event, userId],
   );
 
-  const handleJoinLeave = () => {
+  const performJoin = () => {
     if (!event) return;
-    const mutation = isParticipant ? leaveMutation : joinMutation;
-    mutation.mutate(
+    joinMutation.mutate(
       { id: event.id },
       {
         onSuccess: () => queryClient.invalidateQueries(),
@@ -102,6 +108,26 @@ export default function EventDetailScreen() {
           Alert.alert("Error", err.message || "Something went wrong."),
       },
     );
+  };
+
+  const handleJoinLeave = () => {
+    if (!event) return;
+    if (isParticipant) {
+      leaveMutation.mutate(
+        { id: event.id },
+        {
+          onSuccess: () => queryClient.invalidateQueries(),
+          onError: (err) =>
+            Alert.alert("Error", err.message || "Something went wrong."),
+        },
+      );
+      return;
+    }
+    if (event.ticketUrl) {
+      setShowTicketConfirm(true);
+      return;
+    }
+    performJoin();
   };
 
   const handleDelete = () => {
@@ -290,10 +316,18 @@ export default function EventDetailScreen() {
             <Text style={styles.sectionTitle}>Organisers</Text>
             <View style={styles.organisersList}>
               {event.organisers.map((organiser, i) => (
-                <View key={organiser.id} style={styles.organiserItem}>
+                <Pressable
+                  key={organiser.id}
+                  style={styles.organiserItem}
+                  onPress={() => {
+                    if (organiser.id !== userId) {
+                      router.push(`/(app)/user/${organiser.id}` as any);
+                    }
+                  }}
+                >
                   <LinearGradient
                     colors={
-                      ORGANISER_GRADIENTS[i % ORGANISER_GRADIENTS.length]!
+                      AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length]!
                     }
                     style={styles.organiserAvatar}
                     start={{ x: 0, y: 0 }}
@@ -304,18 +338,28 @@ export default function EventDetailScreen() {
                     </Text>
                   </LinearGradient>
                   <Text style={styles.organiserName}>{organiser.name}</Text>
-                </View>
+                </Pressable>
               ))}
             </View>
           </View>
 
           <GlassCard style={styles.statsRow}>
-            <View style={styles.statItem}>
+            <Pressable
+              style={styles.statItem}
+              onPress={() => setShowAttendees(true)}
+            >
               <Text style={styles.statValue}>
                 {event.participants.length}
               </Text>
-              <Text style={styles.statLabel}>Attending</Text>
-            </View>
+              <View style={styles.statLabelRow}>
+                <Text style={styles.statLabel}>Attending</Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={12}
+                  color="rgba(255,255,255,0.3)"
+                />
+              </View>
+            </Pressable>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={styles.statValue}>
@@ -357,6 +401,20 @@ export default function EventDetailScreen() {
 
       {!isOrganiser && (
         <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}>
+          {event.ticketUrl && !isParticipant && (
+            <Pressable
+              style={styles.ticketLinkButton}
+              onPress={() => Linking.openURL(event.ticketUrl!)}
+            >
+              <Ionicons name="ticket-outline" size={16} color="#6C3CE0" />
+              <Text style={styles.ticketLinkText}>Get Tickets</Text>
+              <Ionicons
+                name="open-outline"
+                size={14}
+                color="rgba(108, 60, 224, 0.6)"
+              />
+            </Pressable>
+          )}
           <Pressable
             onPress={handleJoinLeave}
             disabled={actionPending}
@@ -394,6 +452,128 @@ export default function EventDetailScreen() {
           </Pressable>
         </View>
       )}
+
+      <Modal
+        visible={showAttendees}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowAttendees(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Attending</Text>
+            <Pressable
+              onPress={() => setShowAttendees(false)}
+              style={styles.modalClose}
+            >
+              <Ionicons name="close" size={22} color="#FFFFFF" />
+            </Pressable>
+          </View>
+          <ScrollView
+            style={styles.modalScroll}
+            contentContainerStyle={styles.modalScrollContent}
+          >
+            {event?.participants.map((p, i) => (
+              <Pressable
+                key={p.id}
+                style={styles.attendeeRow}
+                onPress={() => {
+                  if (p.id !== userId) {
+                    setShowAttendees(false);
+                    router.push(`/(app)/user/${p.id}` as any);
+                  }
+                }}
+              >
+                <LinearGradient
+                  colors={AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length]!}
+                  style={styles.attendeeAvatar}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <Text style={styles.attendeeInitials}>
+                    {getInitials(p.name)}
+                  </Text>
+                </LinearGradient>
+                <Text style={styles.attendeeName}>{p.name}</Text>
+                {p.id === userId && (
+                  <View style={styles.youBadge}>
+                    <Text style={styles.youBadgeText}>You</Text>
+                  </View>
+                )}
+              </Pressable>
+            ))}
+            {event?.participants.length === 0 && (
+              <View style={styles.emptyAttendees}>
+                <Ionicons
+                  name="people-outline"
+                  size={40}
+                  color="rgba(255,255,255,0.15)"
+                />
+                <Text style={styles.emptyAttendeesText}>
+                  No one has joined yet
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showTicketConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTicketConfirm(false)}
+      >
+        <Pressable
+          style={styles.confirmOverlay}
+          onPress={() => setShowTicketConfirm(false)}
+        >
+          <Pressable style={styles.confirmCard}>
+            <View style={styles.confirmIconCircle}>
+              <Ionicons name="ticket-outline" size={28} color="#6C3CE0" />
+            </View>
+            <Text style={styles.confirmTitle}>Get Your Ticket First</Text>
+            <Text style={styles.confirmMessage}>
+              Make sure you get a ticket from the event organiser before joining.
+            </Text>
+            <Pressable
+              style={styles.confirmTicketButton}
+              onPress={() => {
+                if (event?.ticketUrl) Linking.openURL(event.ticketUrl);
+              }}
+            >
+              <Ionicons name="open-outline" size={16} color="#6C3CE0" />
+              <Text style={styles.confirmTicketText}>Get Tickets</Text>
+            </Pressable>
+            <View style={styles.confirmActions}>
+              <Pressable
+                style={styles.confirmCancel}
+                onPress={() => setShowTicketConfirm(false)}
+              >
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={styles.confirmJoin}
+                onPress={() => {
+                  setShowTicketConfirm(false);
+                  performJoin();
+                }}
+              >
+                <LinearGradient
+                  colors={["#6C3CE0", "#E04882"]}
+                  style={styles.confirmJoinGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Text style={styles.confirmJoinText}>
+                    I Have My Ticket
+                  </Text>
+                </LinearGradient>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -581,6 +761,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     gap: 4,
+  } as const,
+  statLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   statValue: {
     fontSize: 22,
@@ -675,6 +860,195 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     fontSize: 16,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+
+  ticketLinkButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    marginBottom: 10,
+    borderRadius: 14,
+    backgroundColor: "rgba(108, 60, 224, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(108, 60, 224, 0.15)",
+  },
+  ticketLinkText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6C3CE0",
+  },
+
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "#0A0A1A",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(255,255,255,0.08)",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  modalClose: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalScroll: {
+    flex: 1,
+  },
+  modalScrollContent: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 40,
+  },
+  attendeeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    gap: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(255,255,255,0.05)",
+  },
+  attendeeAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  attendeeInitials: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  attendeeName: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#FFFFFF",
+  },
+  youBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 12,
+    backgroundColor: "rgba(108, 60, 224, 0.15)",
+  },
+  youBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#6C3CE0",
+  },
+  emptyAttendees: {
+    alignItems: "center",
+    paddingTop: 60,
+    gap: 10,
+  },
+  emptyAttendeesText: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: "rgba(255,255,255,0.35)",
+  },
+
+  confirmOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 32,
+  },
+  confirmCard: {
+    width: "100%",
+    backgroundColor: "#1A1A2E",
+    borderRadius: 24,
+    padding: 28,
+    alignItems: "center",
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
+  },
+  confirmIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "rgba(108, 60, 224, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  confirmTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    textAlign: "center",
+  },
+  confirmMessage: {
+    fontSize: 14,
+    fontWeight: "400",
+    color: "rgba(255,255,255,0.55)",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  confirmTicketButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: "rgba(108, 60, 224, 0.12)",
+    marginVertical: 4,
+  },
+  confirmTicketText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6C3CE0",
+  },
+  confirmActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 8,
+    width: "100%",
+  },
+  confirmCancel: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    alignItems: "center",
+  },
+  confirmCancelText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.5)",
+  },
+  confirmJoin: {
+    flex: 1,
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  confirmJoinGradient: {
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  confirmJoinText: {
+    fontSize: 15,
     fontWeight: "700",
     color: "#FFFFFF",
   },

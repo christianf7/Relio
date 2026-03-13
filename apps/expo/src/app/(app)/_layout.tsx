@@ -28,6 +28,13 @@ export default function AppLayout() {
           animation: "slide_from_bottom",
         }}
       />
+      <Stack.Screen
+        name="user/[id]"
+        options={{
+          presentation: "modal",
+          animation: "slide_from_bottom",
+        }}
+      />
     </Stack>
   );
 }

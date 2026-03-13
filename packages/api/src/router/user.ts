@@ -1,10 +1,10 @@
 import type { TRPCRouterRecord } from "@trpc/server";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
 
 import { protectedProcedure } from "../trpc";
 
 export const userRouter = {
-  // I replaced the unsafe getUserById with this @getMe as the other one could be ran by any user responding with ALL their data.
   getMe: protectedProcedure.query(async ({ ctx }) => {
     const user = await ctx.db.user.findUnique({
       where: { id: ctx.session.user.id },
@@ -66,5 +66,83 @@ export const userRouter = {
         },
         data: input,
       });
+    }),
+  getById: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      if (input.id === ctx.session.user.id) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Use getMe for your own profile.",
+        });
+      }
+
+      const user = await ctx.db.user.findUnique({
+        where: { id: input.id },
+        include: {
+          _count: {
+            select: {
+              connections: true,
+              connectedBy: true,
+              upcomingEvents: true,
+              organisedEvents: true,
+            },
+          },
+        },
+      });
+
+      if (!user) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "User not found." });
+      }
+
+      const isConnected = await ctx.db.user.findFirst({
+        where: {
+          id: ctx.session.user.id,
+          OR: [
+            { connections: { some: { id: input.id } } },
+            { connectedBy: { some: { id: input.id } } },
+          ],
+        },
+        select: { id: true },
+      });
+
+      const pendingRequest = await ctx.db.connectionRequest.findFirst({
+        where: {
+          OR: [
+            { senderId: ctx.session.user.id, receiverId: input.id },
+            { senderId: input.id, receiverId: ctx.session.user.id },
+          ],
+          status: "PENDING",
+        },
+        select: {
+          id: true,
+          senderId: true,
+        },
+      });
+
+      const connectionsCount = user._count.connections + user._count.connectedBy;
+      const eventsCount = user._count.upcomingEvents + user._count.organisedEvents;
+
+      return {
+        id: user.id,
+        name: user.name,
+        displayName: user.displayName,
+        slug: user.slug,
+        bio: user.bio,
+        image: user.image,
+        bannerUrl: user.bannerUrl,
+        enrolledUnits: (user as any).enrolledUnits ?? [],
+        socials: user.socials,
+        connectionsCount,
+        eventsCount,
+        connectionStatus: isConnected
+          ? ("connected" as const)
+          : pendingRequest
+            ? pendingRequest.senderId === ctx.session.user.id
+              ? ("pending_sent" as const)
+              : ("pending_received" as const)
+            : ("none" as const),
+        pendingRequestId: pendingRequest?.id ?? null,
+      };
     }),
 } satisfies TRPCRouterRecord;

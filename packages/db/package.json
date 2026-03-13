@@ -47,6 +47,7 @@
     "eslint": "catalog:",
     "prettier": "catalog:",
     "prisma": "^6.19.2",
+    "tsx": "^4.21.0",
     "typescript": "catalog:"
   },
   "prettier": "@acme/prettier-config"

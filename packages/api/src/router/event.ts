@@ -19,6 +19,26 @@ export const eventRouter = {
       },
     });
   }),
+
+  getMyUpcomingEvents: protectedProcedure.query(({ ctx }) => {
+    return ctx.db.event.findMany({
+      where: {
+        date: { gte: new Date() },
+        participants: {
+          some: { id: ctx.session.user.id },
+        },
+      },
+      orderBy: { date: "asc" },
+      include: {
+        organisers: {
+          select: { id: true, name: true },
+        },
+        participants: {
+          select: { id: true },
+        },
+      },
+    });
+  }),
   // --------------getUsersInEvent-----------------------------------------
   getUsersInEvents: protectedProcedure
     .input(z.object({ id: z.string() }))
@@ -92,6 +112,69 @@ export const eventRouter = {
         },
       });
     }),
+  getSuggestedEvents: protectedProcedure.query(async ({ ctx }) => {
+    const currentUser = await ctx.db.user.findUnique({
+      where: { id: ctx.session.user.id },
+      select: {
+        enrolledUnits: true,
+        upcomingEvents: { select: { id: true } },
+        organisedEvents: { select: { id: true } },
+      },
+    });
+
+    if (!currentUser) return [];
+
+    const units = Array.isArray(currentUser.enrolledUnits)
+      ? (currentUser.enrolledUnits as { code: string; university: string }[])
+      : [];
+
+    if (units.length === 0) return [];
+
+    const myEventIds = [
+      ...currentUser.upcomingEvents.map((e) => e.id),
+      ...currentUser.organisedEvents.map((e) => e.id),
+    ];
+
+    const unitCodes = units.map((u) => u.code);
+
+    const similarUsers = await ctx.db.user.findMany({
+      where: {
+        id: { not: ctx.session.user.id },
+        OR: unitCodes.map((code) => ({
+          enrolledUnits: {
+            array_contains: [{ code }],
+          },
+        })),
+      },
+      select: { id: true },
+      take: 100,
+    });
+
+    if (similarUsers.length === 0) return [];
+
+    const similarUserIds = similarUsers.map((u) => u.id);
+
+    return ctx.db.event.findMany({
+      where: {
+        date: { gte: new Date() },
+        ...(myEventIds.length > 0 ? { id: { notIn: myEventIds } } : {}),
+        participants: {
+          some: { id: { in: similarUserIds } },
+        },
+      },
+      orderBy: { date: "asc" },
+      take: 10,
+      include: {
+        organisers: {
+          select: { id: true, name: true },
+        },
+        participants: {
+          select: { id: true },
+        },
+      },
+    });
+  }),
+
   // --------------getById-----------------------------------------
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
@@ -100,10 +183,10 @@ export const eventRouter = {
         where: { id: input.id },
         include: {
           organisers: {
-            select: { id: true, name: true },
+            select: { id: true, name: true, avatarUrl: true },
           },
           participants: {
-            select: { id: true, name: true },
+            select: { id: true, name: true, avatarUrl: true },
           },
         },
       });
@@ -117,6 +200,7 @@ export const eventRouter = {
         location: z.string().min(1),
         content: z.string().optional(),
         bannerUrl: z.string().optional(),
+        ticketUrl: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -135,6 +219,7 @@ export const eventRouter = {
           location: input.location,
           content: input.content ?? null,
           bannerUrl: input.bannerUrl ?? null,
+          ticketUrl: input.ticketUrl ?? null,
           organisers: {
             connect: { id: ctx.session.user.id },
           },
@@ -152,6 +237,7 @@ export const eventRouter = {
           location: z.string().optional(),
           content: z.string().optional(),
           bannerUrl: z.string().optional(),
+          ticketUrl: z.string().nullable().optional(),
         }),
       }),
     )

@@ -103,9 +103,11 @@ type PendingRequest = {
 function ConnectionCard({
   item,
   index,
+  onPress,
 }: {
   item: ConnectionItem;
   index: number;
+  onPress: () => void;
 }) {
   const name = item.displayName ?? item.name;
   const gradient = AVATAR_GRADIENTS[index % AVATAR_GRADIENTS.length]!;
@@ -116,6 +118,7 @@ function ConnectionCard({
         styles.connectionCard,
         pressed && styles.connectionCardPressed,
       ]}
+      onPress={onPress}
     >
       {item.image ? (
         <Image source={{ uri: item.image }} style={styles.connectionAvatar} />
@@ -145,12 +148,14 @@ function RequestCard({
   request,
   onAccept,
   onDecline,
+  onPress,
   isAccepting,
   isDeclining,
 }: {
   request: PendingRequest;
   onAccept: () => void;
   onDecline: () => void;
+  onPress: () => void;
   isAccepting: boolean;
   isDeclining: boolean;
 }) {
@@ -158,26 +163,31 @@ function RequestCard({
 
   return (
     <View style={styles.requestCard}>
-      {request.sender.image ? (
-        <Image
-          source={{ uri: request.sender.image }}
-          style={styles.requestAvatar}
-        />
-      ) : (
-        <LinearGradient
-          colors={["#6C3CE0", "#E04882"]}
-          style={styles.requestAvatar}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <Text style={styles.requestInitials}>{getInitials(name)}</Text>
-        </LinearGradient>
-      )}
-      <View style={styles.requestInfo}>
-        <Text style={styles.requestName} numberOfLines={1}>
-          {name}
-        </Text>
-      </View>
+      <Pressable
+        style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: 12 }}
+        onPress={onPress}
+      >
+        {request.sender.image ? (
+          <Image
+            source={{ uri: request.sender.image }}
+            style={styles.requestAvatar}
+          />
+        ) : (
+          <LinearGradient
+            colors={["#6C3CE0", "#E04882"]}
+            style={styles.requestAvatar}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Text style={styles.requestInitials}>{getInitials(name)}</Text>
+          </LinearGradient>
+        )}
+        <View style={styles.requestInfo}>
+          <Text style={styles.requestName} numberOfLines={1}>
+            {name}
+          </Text>
+        </View>
+      </Pressable>
       <View style={styles.requestActions}>
         <Pressable
           onPress={onAccept}
@@ -349,6 +359,9 @@ export default function PeopleScreen() {
               request={req}
               isAccepting={acceptingId === req.id}
               isDeclining={decliningId === req.id}
+              onPress={() =>
+                router.push(`/(app)/user/${req.sender.id}` as any)
+              }
               onAccept={() => {
                 setAcceptingId(req.id);
                 acceptMutation.mutate({ requestId: req.id });
@@ -408,7 +421,13 @@ export default function PeopleScreen() {
       <FlatList
         data={filteredConnections}
         renderItem={({ item, index }) => (
-          <ConnectionCard item={item as ConnectionItem} index={index} />
+          <ConnectionCard
+            item={item as ConnectionItem}
+            index={index}
+            onPress={() =>
+              router.push(`/(app)/user/${(item as ConnectionItem).id}` as any)
+            }
+          />
         )}
         keyExtractor={(item) => (item as ConnectionItem).id}
         ListHeaderComponent={renderListHeader}

@@ -200,18 +200,21 @@ const MESSAGE_TEMPLATES = [
 
 async function main() {
   console.log("Clearing existing seed data...");
-  await db.message.deleteMany();
-  await db.connectionRequest.deleteMany();
-  await db.event.deleteMany();
-  await db.session.deleteMany();
-  await db.account.deleteMany();
-  await db.verification.deleteMany();
-  await db.user.deleteMany();
+  await db.$transaction([
+    db.message.deleteMany(),
+    db.connectionRequest.deleteMany(),
+    db.event.deleteMany(),
+    db.session.deleteMany(),
+    db.account.deleteMany(),
+    db.verification.deleteMany(),
+    db.user.deleteMany(),
+  ]);
 
   console.log("Seeding users...");
 
   const usedEmails = new Set<string>();
   const usedSlugs = new Set<string>();
+  const now = new Date();
 
   const users = Array.from({ length: 40 }, () => {
     const firstName = pick(FIRST_NAMES);
@@ -249,11 +252,12 @@ async function main() {
               ? `https://linkedin.com/in/${slug}`
               : null,
           discordUrl:
-            Math.random() > 0.5 ? `${firstName.toLowerCase()}#${randomInt(1000, 9999)}` : null,
+            Math.random() > 0.5
+              ? `${firstName.toLowerCase()}#${randomInt(1000, 9999)}`
+              : null,
         }
       : null;
 
-    const now = new Date();
     const createdAt = randomDate(
       new Date(now.getFullYear(), now.getMonth() - 6, 1),
       new Date(now.getFullYear(), now.getMonth() - 1, 1),
@@ -277,15 +281,23 @@ async function main() {
     };
   });
 
-  for (const user of users) {
-    await db.user.create({ data: user });
-  }
+  await db.user.createMany({ data: users });
   console.log(`  Created ${users.length} users`);
 
   console.log("Seeding events...");
 
-  const now = new Date();
-  const events = EVENT_TITLES.map((title, i) => {
+  interface EventSeed {
+    id: string;
+    title: string;
+    date: Date;
+    location: string;
+    bannerUrl: null;
+    content: string | null;
+    organiserIds: string[];
+    participantIds: string[];
+  }
+
+  const eventSeeds: EventSeed[] = EVENT_TITLES.map((title, i) => {
     const isPast = Math.random() > 0.5;
     const date = isPast
       ? randomDate(
@@ -297,17 +309,6 @@ async function main() {
           new Date(now.getFullYear(), now.getMonth() + 3, 1),
         );
 
-    return {
-      id: randomUUID(),
-      title,
-      date,
-      location: pick(EVENT_LOCATIONS),
-      bannerUrl: null,
-      content: EVENT_DESCRIPTIONS[i] ?? null,
-    };
-  });
-
-  for (const event of events) {
     const numOrganisers = randomInt(1, 3);
     const organisers = pickN(users, numOrganisers);
     const remainingUsers = users.filter(
@@ -316,23 +317,56 @@ async function main() {
     const numParticipants = randomInt(3, Math.min(15, remainingUsers.length));
     const participants = pickN(remainingUsers, numParticipants);
 
-    await db.event.create({
-      data: {
-        ...event,
-        organisers: { connect: organisers.map((u) => ({ id: u.id })) },
-        participants: { connect: participants.map((u) => ({ id: u.id })) },
-      },
-    });
-  }
-  console.log(`  Created ${events.length} events`);
+    return {
+      id: randomUUID(),
+      title,
+      date,
+      location: pick(EVENT_LOCATIONS),
+      bannerUrl: null,
+      content: EVENT_DESCRIPTIONS[i] ?? null,
+      organiserIds: organisers.map((u) => u.id),
+      participantIds: participants.map((u) => u.id),
+    };
+  });
 
-  console.log("Seeding connections & requests...");
+  await db.event.createMany({
+    data: eventSeeds.map(({ organiserIds: _, participantIds: __, ...rest }) => rest),
+  });
+
+  const eventRelationOps = eventSeeds.flatMap((e) => [
+    ...e.organiserIds.map((uid) =>
+      db.event.update({
+        where: { id: e.id },
+        data: { organisers: { connect: { id: uid } } },
+      }),
+    ),
+    ...e.participantIds.map((uid) =>
+      db.event.update({
+        where: { id: e.id },
+        data: { participants: { connect: { id: uid } } },
+      }),
+    ),
+  ]);
+
+  const BATCH_SIZE = 20;
+  for (let i = 0; i < eventRelationOps.length; i += BATCH_SIZE) {
+    await db.$transaction(eventRelationOps.slice(i, i + BATCH_SIZE));
+  }
+  console.log(`  Created ${eventSeeds.length} events with organisers & participants`);
+
+  console.log("Seeding connections...");
 
   const connectionPairs = new Set<string>();
-  let connectionsCreated = 0;
+  const connectionOps: ReturnType<typeof db.user.update>[] = [];
+  const connectionRequestData: {
+    senderId: string;
+    receiverId: string;
+    status: "ACCEPTED";
+    createdAt: Date;
+  }[] = [];
 
   for (const user of users) {
-    const numConnections = randomInt(2, 8);
+    const numConnections = randomInt(2, 6);
     const potentialConnections = users.filter((u) => u.id !== user.id);
     const targets = pickN(potentialConnections, numConnections);
 
@@ -341,30 +375,40 @@ async function main() {
       if (connectionPairs.has(pairKey)) continue;
       connectionPairs.add(pairKey);
 
-      await db.user.update({
-        where: { id: user.id },
-        data: { connections: { connect: { id: target.id } } },
-      });
+      connectionOps.push(
+        db.user.update({
+          where: { id: user.id },
+          data: { connections: { connect: { id: target.id } } },
+        }),
+      );
 
-      await db.connectionRequest.create({
-        data: {
-          senderId: user.id,
-          receiverId: target.id,
-          status: "ACCEPTED",
-          createdAt: randomDate(
-            new Date(now.getFullYear(), now.getMonth() - 4, 1),
-            now,
-          ),
-        },
+      connectionRequestData.push({
+        senderId: user.id,
+        receiverId: target.id,
+        status: "ACCEPTED",
+        createdAt: randomDate(
+          new Date(now.getFullYear(), now.getMonth() - 4, 1),
+          now,
+        ),
       });
-
-      connectionsCreated++;
     }
   }
-  console.log(`  Created ${connectionsCreated} accepted connections`);
+
+  for (let i = 0; i < connectionOps.length; i += BATCH_SIZE) {
+    await db.$transaction(connectionOps.slice(i, i + BATCH_SIZE));
+  }
+  await db.connectionRequest.createMany({ data: connectionRequestData });
+  console.log(`  Created ${connectionPairs.size} accepted connections`);
+
+  console.log("Seeding pending connection requests...");
 
   const pendingPairs = new Set<string>();
-  let pendingCreated = 0;
+  const pendingData: {
+    senderId: string;
+    receiverId: string;
+    status: "PENDING";
+    message: string | null;
+  }[] = [];
 
   for (let i = 0; i < 20; i++) {
     const sender = pick(users);
@@ -374,69 +418,76 @@ async function main() {
     if (connectionPairs.has(pairKey) || pendingPairs.has(pairKey)) continue;
     pendingPairs.add(pairKey);
 
-    await db.connectionRequest.create({
-      data: {
-        senderId: sender.id,
-        receiverId: receiver.id,
-        status: "PENDING",
-        message:
-          Math.random() > 0.4
-            ? pick(MESSAGE_TEMPLATES)
-            : null,
-      },
+    pendingData.push({
+      senderId: sender.id,
+      receiverId: receiver.id,
+      status: "PENDING",
+      message: Math.random() > 0.4 ? pick(MESSAGE_TEMPLATES) : null,
     });
-    pendingCreated++;
   }
-  console.log(`  Created ${pendingCreated} pending connection requests`);
+
+  await db.connectionRequest.createMany({ data: pendingData });
+  console.log(`  Created ${pendingData.length} pending connection requests`);
 
   console.log("Seeding messages...");
-
-  let messagesCreated = 0;
 
   const connectedPairsList = Array.from(connectionPairs).map((pair) => {
     const [a, b] = pair.split(":");
     return [a!, b!] as const;
   });
 
-  for (const [userA, userB] of pickN(connectedPairsList, Math.min(30, connectedPairsList.length))) {
+  const dmMessages: {
+    content: string;
+    senderId: string;
+    receiverId: string;
+    createdAt: Date;
+  }[] = [];
+
+  for (const [userA, userB] of pickN(
+    connectedPairsList,
+    Math.min(30, connectedPairsList.length),
+  )) {
     const numMessages = randomInt(1, 5);
     for (let j = 0; j < numMessages; j++) {
       const isSenderA = Math.random() > 0.5;
-      await db.message.create({
-        data: {
-          content: pick(MESSAGE_TEMPLATES),
-          senderId: isSenderA ? userA : userB,
-          receiverId: isSenderA ? userB : userA,
-          createdAt: randomDate(
-            new Date(now.getFullYear(), now.getMonth() - 2, 1),
-            now,
-          ),
-        },
+      dmMessages.push({
+        content: pick(MESSAGE_TEMPLATES),
+        senderId: isSenderA ? userA : userB,
+        receiverId: isSenderA ? userB : userA,
+        createdAt: randomDate(
+          new Date(now.getFullYear(), now.getMonth() - 2, 1),
+          now,
+        ),
       });
-      messagesCreated++;
     }
   }
 
-  for (const event of pickN(events, 10)) {
+  const eventMessages: {
+    content: string;
+    senderId: string;
+    eventId: string;
+    createdAt: Date;
+  }[] = [];
+
+  for (const event of pickN(eventSeeds, 10)) {
     const numMessages = randomInt(2, 6);
     for (let j = 0; j < numMessages; j++) {
       const sender = pick(users);
-      await db.message.create({
-        data: {
-          content: pick(MESSAGE_TEMPLATES),
-          senderId: sender.id,
-          eventId: event.id,
-          createdAt: randomDate(
-            new Date(now.getFullYear(), now.getMonth() - 1, 1),
-            now,
-          ),
-        },
+      eventMessages.push({
+        content: pick(MESSAGE_TEMPLATES),
+        senderId: sender.id,
+        eventId: event.id,
+        createdAt: randomDate(
+          new Date(now.getFullYear(), now.getMonth() - 1, 1),
+          now,
+        ),
       });
-      messagesCreated++;
     }
   }
 
-  console.log(`  Created ${messagesCreated} messages`);
+  await db.message.createMany({ data: [...dmMessages, ...eventMessages] });
+  console.log(`  Created ${dmMessages.length + eventMessages.length} messages`);
+
   console.log("\nSeed complete!");
 }
 
