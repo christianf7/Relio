@@ -33,6 +33,8 @@ model User {
   receivedConnectionRequests ConnectionRequest[] @relation("ConnectionRequestReceiver")
   sentMessages               Message[]           @relation("MessageSender")
   receivedMessages           Message[]           @relation("MessageReceiver")
+  swipesSent                 Swipe[]             @relation("SwipesSent")
+  swipesReceived             Swipe[]             @relation("SwipesReceived")
   upcomingEvents Event[] @relation("EventParticipants")
   organisedEvents Event[] @relation("EventOrganisers")
 
@@ -61,6 +63,27 @@ model ConnectionRequest {
   @@index([receiverId, status])
   @@index([senderId, status])
   @@map("connection_request")
+}
+
+enum SwipeDirection {
+  LEFT
+  RIGHT
+}
+
+model Swipe {
+  id        String         @id @default(uuid())
+  swiperId  String         @map("swiper_id")
+  swipedId  String         @map("swiped_id")
+  direction SwipeDirection
+  matched   Boolean        @default(false)
+  createdAt DateTime       @default(now()) @map("created_at")
+
+  swiper User @relation("SwipesSent", fields: [swiperId], references: [id], onDelete: Cascade)
+  swiped User @relation("SwipesReceived", fields: [swipedId], references: [id], onDelete: Cascade)
+
+  @@unique([swiperId, swipedId])
+  @@index([swipedId, direction])
+  @@map("swipe")
 }
 
 model Event {

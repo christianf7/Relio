@@ -22,6 +22,13 @@ export default function AppLayout() {
         }}
       />
       <Stack.Screen
+        name="find-people"
+        options={{
+          animation: "slide_from_bottom",
+          presentation: "modal",
+        }}
+      />
+      <Stack.Screen
         name="event/[id]"
         options={{
           presentation: "modal",
