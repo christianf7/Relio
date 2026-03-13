@@ -43,6 +43,7 @@ export const eventRouter = {
         date: z.string(),
         location: z.string().min(1),
         content: z.string().optional(),
+        bannerUrl: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -60,6 +61,7 @@ export const eventRouter = {
           date: eventDate,
           location: input.location,
           content: input.content ?? null,
+          bannerUrl: input.bannerUrl ?? null,
           organisers: {
             connect: { id: ctx.session.user.id },
           },
@@ -76,6 +78,7 @@ export const eventRouter = {
           date: z.string().optional(),
           location: z.string().optional(),
           content: z.string().optional(),
+          bannerUrl: z.string().optional(),
         }),
       }),
     )

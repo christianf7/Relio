@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Platform,
   Pressable,
   RefreshControl,
@@ -78,6 +79,7 @@ function GlassCard({
 function EventCard({
   event,
   index,
+  onPress,
 }: {
   event: {
     id: string;
@@ -88,38 +90,47 @@ function EventCard({
     organisers: { id: string; name: string }[];
   };
   index: number;
+  onPress: () => void;
 }) {
   const gradient = CARD_GRADIENTS[index % CARD_GRADIENTS.length]!;
 
   return (
     <Pressable
+      onPress={onPress}
       style={({ pressed }) => [
         styles.eventCard,
         pressed && styles.eventCardPressed,
       ]}
     >
-      <LinearGradient
-        colors={gradient}
-        style={styles.eventImageContainer}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <View style={styles.eventImageDecor} />
-        <View
-          style={[
-            styles.eventImageDecor,
-            {
-              width: 30,
-              height: 30,
-              borderRadius: 15,
-              bottom: 8,
-              right: 8,
-              top: undefined,
-              opacity: 0.15,
-            },
-          ]}
+      {event.bannerUrl ? (
+        <Image
+          source={{ uri: event.bannerUrl }}
+          style={styles.eventBannerImage}
         />
-      </LinearGradient>
+      ) : (
+        <LinearGradient
+          colors={gradient}
+          style={styles.eventImageContainer}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <View style={styles.eventImageDecor} />
+          <View
+            style={[
+              styles.eventImageDecor,
+              {
+                width: 30,
+                height: 30,
+                borderRadius: 15,
+                bottom: 8,
+                right: 8,
+                top: undefined,
+                opacity: 0.15,
+              },
+            ]}
+          />
+        </LinearGradient>
+      )}
       <View style={styles.eventInfo}>
         <Text style={styles.eventTitle} numberOfLines={1}>
           {event.title}
@@ -351,7 +362,11 @@ export default function EventsScreen() {
       <FlatList
         data={filteredEvents}
         renderItem={({ item, index }) => (
-          <EventCard event={item} index={index} />
+          <EventCard
+            event={item}
+            index={index}
+            onPress={() => router.push(`/(app)/event/${item.id}` as any)}
+          />
         )}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={renderListHeader}
@@ -483,6 +498,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     position: "relative",
+  },
+  eventBannerImage: {
+    width: 90,
+    height: 90,
+    borderRadius: 12,
+    resizeMode: "cover",
   },
   eventImageDecor: {
     position: "absolute",

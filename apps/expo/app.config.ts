@@ -5,6 +5,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: "Relio",
   slug: "relio",
   scheme: "expo",
+  extra: {
+    eas: {
+      projectId: "cadb02e6-0656-4239-b3f0-da5062d19034",
+    }
+  },
   version: "0.1.0",
   orientation: "portrait",
   icon: "./assets/icon-light.png",
