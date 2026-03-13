@@ -24,7 +24,7 @@ export const userRouter = {
           .object({
             githubUrl: z.string().nullable().optional(),
             linkedInUrl: z.string().nullable().optional(),
-            discordUrl: z.string().nullable().optional()
+            discordUrl: z.string().nullable().optional(),
           })
           .optional(),
       }),
@@ -37,6 +37,5 @@ export const userRouter = {
         data: input,
       });
     }),
-    // --------------connectById-----------------------------------------
     
 } satisfies TRPCRouterRecord;

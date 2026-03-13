@@ -28,6 +28,8 @@ model User {
   connectedBy User[]    @relation("UserConnections")
   sentConnectionRequests     ConnectionRequest[] @relation("ConnectionRequestSender")
   receivedConnectionRequests ConnectionRequest[] @relation("ConnectionRequestReceiver")
+  sentMessages               Message[]           @relation("MessageSender")
+  receivedMessages           Message[]           @relation("MessageReceiver")
   upcomingEvents Event[] @relation("EventParticipants")
   organisedEvents Event[] @relation("EventOrganisers")
 
@@ -67,8 +69,28 @@ model Event {
   content      String?
   organisers    User[]   @relation("EventOrganisers")
   participants User[]   @relation("EventParticipants")
+  messages     Message[]
 
   @@map("event")
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  content    String
+  senderId   String   @map("sender_id")
+  receiverId String?  @map("receiver_id")
+  eventId    String?  @map("event_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  sender   User  @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User? @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  event    Event? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([senderId, createdAt])
+  @@index([receiverId, createdAt])
+  @@index([eventId, createdAt])
+  @@map("message")
 }
 
 model Session {
