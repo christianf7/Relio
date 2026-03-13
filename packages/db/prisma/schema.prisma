@@ -19,17 +19,40 @@ model Post {
 
 model User {
   id            String   @id
+  slug          String   @unique
+  displayName   String
   name          String
   email         String   @unique
   emailVerified Boolean  @map("email_verified")
   image         String?
+  avatarUrl     String?
+  bannerUrl     String?
+  bio           String?
+  socials       Json?
   createdAt     DateTime @map("created_at")
   updatedAt     DateTime @map("updated_at")
 
   sessions Session[]
   accounts Account[]
+  connections User[]    @relation("UserConnections")
+  connectedBy User[]    @relation("UserConnections")
+  upcomingEvents Event[] @relation("EventParticipants")
+  organisedEvents Event[] @relation("EventOrganisers")
 
   @@map("user")
+}
+
+model Event {
+  id           Int      @id @default(autoincrement())
+  title        String
+  date         DateTime @db.Timestamptz
+  location     String
+  bannerUrl    String?
+  content      String?
+  organiser    User[]   @relation("EventOrganisers")
+  participants User[]   @relation("EventParticipants")
+
+  @@map("event")
 }
 
 model Session {
