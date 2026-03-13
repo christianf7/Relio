@@ -17,7 +17,7 @@ export async function AuthShowcase() {
             "use server";
             const res = await auth.api.signInSocial({
               body: {
-                provider: "discord",
+                provider: "linkedin",
                 callbackURL: "/",
               },
             });

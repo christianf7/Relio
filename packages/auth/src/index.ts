@@ -31,13 +31,13 @@ export function initAuth<
       ...(options.extraPlugins ?? []),
     ],
     socialProviders: {
-      discord: {
+      linkedin: {
         clientId: options.discordClientId,
         clientSecret: options.discordClientSecret,
-        redirectURI: `${options.productionUrl}/api/auth/callback/discord`,
+        redirectURI: `${options.productionUrl}/api/auth/callback/linkedin`,
       },
     },
-    trustedOrigins: ["expo://"],
+    trustedOrigins: ["expo://", "exp://"],
     onAPIError: {
       onError(error, ctx) {
         console.error("BETTER AUTH API ERROR", error, ctx);

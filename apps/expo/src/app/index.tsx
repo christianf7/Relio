@@ -111,7 +111,7 @@ function MobileAuth() {
           session
             ? authClient.signOut()
             : authClient.signIn.social({
-                provider: "discord",
+                provider: "linkedin",
                 callbackURL: "/",
               })
         }
