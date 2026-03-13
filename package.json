@@ -36,8 +36,5 @@
     "turbo": "^2.5.8",
     "typescript": "catalog:"
   },
-  "prettier": "@acme/prettier-config",
-  "dependencies": {
-    "@prisma/client": "^6.19.2"
-  }
+  "prettier": "@acme/prettier-config"
 }
