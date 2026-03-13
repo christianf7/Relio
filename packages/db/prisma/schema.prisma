@@ -19,8 +19,11 @@ model User {
   bio           String?
   socials       Json?
   image         String?
+  enrolledUnits String[] @map("enrolled_units")
   createdAt     DateTime @map("created_at")
   updatedAt     DateTime @map("updated_at")
+
+  
 
   sessions Session[]
   accounts Account[]

@@ -20,6 +20,7 @@ export const userRouter = {
         slug: z.string().min(1).optional(),
         displayName: z.string().min(4).optional(),
         bio: z.string().nullable().optional(),
+        enrolledUnits: z.array(z.string()).optional(),
         socials: z
           .object({
             githubUrl: z.string().nullable().optional(),
