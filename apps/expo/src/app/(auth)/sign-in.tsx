@@ -305,7 +305,7 @@ export default function SignInScreen() {
           <GlassCard style={styles.signInCard}>
             <Text style={styles.welcomeTitle}>Welcome</Text>
             <Text style={styles.welcomeSubtitle}>
-              Sign in to connect with the relationships that matter most
+              Sign in to connect with the people you will interact with
             </Text>
 
             <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
@@ -329,12 +329,6 @@ export default function SignInScreen() {
               By continuing, you agree to our Terms of Service and Privacy Policy
             </Text>
           </GlassCard>
-
-          <GlassPill style={styles.footerPill}>
-            <Text style={styles.footerText}>
-              Secured with enterprise-grade encryption
-            </Text>
-          </GlassPill>
         </Animated.View>
       </View>
     </View>
