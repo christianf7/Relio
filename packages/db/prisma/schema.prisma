@@ -26,10 +26,36 @@ model User {
   accounts Account[]
   connections User[]    @relation("UserConnections")
   connectedBy User[]    @relation("UserConnections")
+  sentConnectionRequests     ConnectionRequest[] @relation("ConnectionRequestSender")
+  receivedConnectionRequests ConnectionRequest[] @relation("ConnectionRequestReceiver")
   upcomingEvents Event[] @relation("EventParticipants")
   organisedEvents Event[] @relation("EventOrganisers")
 
   @@map("user")
+}
+
+enum ConnectionRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model ConnectionRequest {
+  id         String                  @id @default(uuid())
+  senderId   String                  @map("sender_id")
+  receiverId String                  @map("receiver_id")
+  status     ConnectionRequestStatus @default(PENDING)
+  message    String?
+  createdAt  DateTime                @default(now()) @map("created_at")
+  updatedAt  DateTime                @updatedAt @map("updated_at") @db.Timestamptz
+
+  sender   User @relation("ConnectionRequestSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ConnectionRequestReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@index([receiverId, status])
+  @@index([senderId, status])
+  @@map("connection_request")
 }
 
 model Event {
