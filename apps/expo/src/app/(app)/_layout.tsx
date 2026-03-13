@@ -16,6 +16,12 @@ export default function AppLayout() {
         }}
       />
       <Stack.Screen
+        name="edit-profile"
+        options={{
+          animation: "slide_from_right",
+        }}
+      />
+      <Stack.Screen
         name="event/[id]"
         options={{
           presentation: "modal",
