@@ -13,6 +13,7 @@ import QRCode from "react-native-qrcode-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { LinearGradient } from "expo-linear-gradient";
+import { useIsFocused } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -71,6 +72,9 @@ export default function ScanScreen() {
   const [scannedUserId, setScannedUserId] = useState<string | null>(null);
   const [hasScanned, setHasScanned] = useState(false);
   const lastScanAtRef = useRef(0);
+  const isFocused = useIsFocused();
+
+  const cameraActive = isFocused && mode === "scan";
 
   const userId = session?.user?.id ?? "";
 
@@ -123,6 +127,10 @@ export default function ScanScreen() {
     }),
   );
 
+  const eventJoinMutation = useMutation(
+    trpc.event.joinViaQr.mutationOptions(),
+  );
+
   const resetScanner = useCallback(() => {
     setHasScanned(false);
     setScannedUserId(null);
@@ -135,6 +143,7 @@ export default function ScanScreen() {
       if (
         hasScanned ||
         connectMutation.isPending ||
+        eventJoinMutation.isPending ||
         now - lastScanAtRef.current < SCAN_COOLDOWN_MS
       ) {
         return;
@@ -142,8 +151,56 @@ export default function ScanScreen() {
 
       lastScanAtRef.current = now;
 
-      const match = data.match(/^relio:\/\/connect\/(.+)$/);
-      if (!match?.[1]) {
+      const eventMatch = data.match(/^relio:\/\/event\/(.+)$/);
+      if (eventMatch?.[1]) {
+        const eventId = eventMatch[1];
+        setHasScanned(true);
+        eventJoinMutation.mutate(
+          { eventId },
+          {
+            onSuccess: (result) => {
+              if (result.alreadyJoined) {
+                Alert.alert(
+                  "Already Joined",
+                  `You're already attending "${result.event.title}".`,
+                  [
+                    {
+                      text: "View Event",
+                      onPress: () => {
+                        resetScanner();
+                        router.push(`/(app)/event/${result.event.id}` as any);
+                      },
+                    },
+                  ],
+                );
+              } else {
+                Alert.alert(
+                  "Joined!",
+                  `You've joined "${result.event.title}".`,
+                  [
+                    {
+                      text: "View Event",
+                      onPress: () => {
+                        resetScanner();
+                        router.push(`/(app)/event/${result.event.id}` as any);
+                      },
+                    },
+                  ],
+                );
+              }
+            },
+            onError: (err) => {
+              Alert.alert("Error", err.message, [
+                { text: "OK", onPress: resetScanner },
+              ]);
+            },
+          },
+        );
+        return;
+      }
+
+      const connectMatch = data.match(/^relio:\/\/connect\/(.+)$/);
+      if (!connectMatch?.[1]) {
         Alert.alert(
           "Invalid QR",
           "This doesn't appear to be a Relio QR code.",
@@ -152,12 +209,12 @@ export default function ScanScreen() {
         return;
       }
 
-      const targetUserId = match[1];
+      const targetUserId = connectMatch[1];
       setHasScanned(true);
       setScannedUserId(targetUserId);
       connectMutation.mutate({ userId: targetUserId } as any);
     },
-    [hasScanned, connectMutation, resetScanner],
+    [hasScanned, connectMutation, eventJoinMutation, resetScanner, router],
   );
 
   if (!permission) {
@@ -249,14 +306,16 @@ export default function ScanScreen() {
 
       {mode === "scan" ? (
         <>
-          <CameraView
-            style={StyleSheet.absoluteFill}
-            facing="back"
-            barcodeScannerSettings={{
-              barcodeTypes: ["qr"],
-            }}
-            onBarcodeScanned={hasScanned ? undefined : handleBarCodeScanned}
-          />
+          {cameraActive && (
+            <CameraView
+              style={StyleSheet.absoluteFill}
+              facing="back"
+              barcodeScannerSettings={{
+                barcodeTypes: ["qr"],
+              }}
+              onBarcodeScanned={hasScanned ? undefined : handleBarCodeScanned}
+            />
+          )}
 
           {/* Overlay */}
           <View style={styles.overlay}>
@@ -274,14 +333,16 @@ export default function ScanScreen() {
               <View style={styles.overlaySide} />
             </View>
             <View style={styles.overlayBottom}>
-              {connectMutation.isPending ? (
+              {connectMutation.isPending || eventJoinMutation.isPending ? (
                 <View style={styles.scanStatus}>
                   <ActivityIndicator size="small" color="#6C3CE0" />
-                  <Text style={styles.scanStatusText}>Connecting...</Text>
+                  <Text style={styles.scanStatusText}>
+                    {eventJoinMutation.isPending ? "Joining event..." : "Connecting..."}
+                  </Text>
                 </View>
               ) : (
                 <Text style={styles.scanHint}>
-                  Point at a Relio QR code to connect
+                  Scan a QR to connect or join an event
                 </Text>
               )}
             </View>
