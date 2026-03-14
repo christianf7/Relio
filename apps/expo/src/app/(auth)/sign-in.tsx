@@ -7,8 +7,9 @@ import {
   Text,
   View,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 
 import FloatingOrbs from "~/components/FloatingOrbs";
 import { GlassCard, GlassPill } from "~/components/GlassCard";
@@ -24,6 +25,7 @@ function LinkedInIcon() {
 
 export default function SignInScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [isSigningIn, setIsSigningIn] = useState(false);
 
   const contentOpacity = useRef(new Animated.Value(0)).current;
@@ -102,7 +104,12 @@ export default function SignInScreen() {
 
       <FloatingOrbs />
 
-      <View style={[styles.content, { paddingTop: insets.top + 60, paddingBottom: insets.bottom + 40 }]}>
+      <View
+        style={[
+          styles.content,
+          { paddingTop: insets.top + 60, paddingBottom: insets.bottom + 40 },
+        ]}
+      >
         <Animated.View
           style={[
             styles.logoSection,
@@ -113,16 +120,18 @@ export default function SignInScreen() {
           ]}
         >
           <GlassCard style={styles.logoContainer}>
-              <Image
-                source={{ uri: "https://relio-cdn.chrisfitz.dev/relio.png" }}
-                style={{ width: 88, height: 88 }}
-              />
+            <Image
+              source={{ uri: "https://relio-cdn.chrisfitz.dev/relio.png" }}
+              style={{ width: 88, height: 88 }}
+            />
           </GlassCard>
 
           <Text style={styles.appName}>Relio</Text>
 
           <GlassPill style={styles.taglinePill}>
-            <Text style={styles.tagline}>Your professional network, elevated</Text>
+            <Text style={styles.tagline}>
+              Your professional network, elevated
+            </Text>
           </GlassPill>
         </Animated.View>
 
@@ -159,7 +168,20 @@ export default function SignInScreen() {
             </Animated.View>
 
             <Text style={styles.termsText}>
-              By continuing, you agree to our Terms of Service and Privacy Policy
+              By continuing, you agree to our{" "}
+              <Text
+                style={styles.termsLink}
+                onPress={() => router.push("/(auth)/terms-of-service" as any)}
+              >
+                Terms of Service
+              </Text>{" "}
+              and{" "}
+              <Text
+                style={styles.termsLink}
+                onPress={() => router.push("/(auth)/privacy-policy" as any)}
+              >
+                Privacy Policy
+              </Text>
             </Text>
           </GlassCard>
         </Animated.View>
@@ -290,6 +312,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 18,
     marginTop: 4,
+  },
+  termsLink: {
+    color: "rgba(255, 255, 255, 0.9)",
+    textDecorationLine: "underline",
   },
 
   footerPill: {
