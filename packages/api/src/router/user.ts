@@ -155,4 +155,77 @@ export const userRouter = {
         pendingRequestId: pendingRequest?.id ?? null,
       };
     }),
+
+  getReconnectPeople: protectedProcedure.query(async ({ ctx }) => {
+    const me = await ctx.db.user.findUnique({
+      where: { id: ctx.session.user.id },
+      select: {
+        id: true,
+        connections: { select: { id: true } },
+        connectedBy: { select: { id: true } },
+        upcomingEvents: {
+          where: { date: { lt: new Date() } },
+          orderBy: { date: "desc" },
+          select: {
+            id: true,
+            title: true,
+            date: true,
+            participants: {
+              select: {
+                id: true,
+                name: true,
+                displayName: true,
+                image: true,
+                avatarUrl: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!me) return [];
+
+    const excludedIds = new Set<string>([
+      me.id,
+      ...me.connections.map((u) => u.id),
+      ...me.connectedBy.map((u) => u.id),
+    ]);
+
+    const byUserId = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        displayName: string | null;
+        image: string | null;
+        avatarUrl: string | null;
+        metAt: string;
+        metAtDate: Date;
+      }
+    >();
+
+    for (const event of me.upcomingEvents) {
+      for (const participant of event.participants) {
+        if (excludedIds.has(participant.id)) continue;
+
+        const existing = byUserId.get(participant.id);
+        if (!existing || event.date > existing.metAtDate) {
+          byUserId.set(participant.id, {
+            id: participant.id,
+            name: participant.name,
+            displayName: participant.displayName,
+            image: participant.image,
+            avatarUrl: participant.avatarUrl,
+            metAt: event.title,
+            metAtDate: event.date,
+          });
+        }
+      }
+    }
+
+    return [...byUserId.values()]
+      .sort((a, b) => b.metAtDate.getTime() - a.metAtDate.getTime())
+      .slice(0, 20);
+  }),
 } satisfies TRPCRouterRecord;

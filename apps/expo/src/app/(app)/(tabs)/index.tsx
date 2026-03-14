@@ -15,11 +15,11 @@ import {
   Text,
   View,
 } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
@@ -32,14 +32,6 @@ try {
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
-const PEOPLE_TO_CONNECT = [
-  { id: "usr_1", name: "Julia Smyth", avatarUrl: null, metAt: "UniHack" },
-  { id: "usr_2", name: "Alex Chen", avatarUrl: null, metAt: "UniHack" },
-  { id: "usr_3", name: "Sarah Kim", avatarUrl: null, metAt: "DevFest" },
-  { id: "usr_4", name: "Marcus Lee", avatarUrl: null, metAt: "UniHack" },
-  { id: "usr_5", name: "Priya Patel", avatarUrl: null, metAt: "Startup Weekend" },
-];
 
 const CAROUSEL_GRADIENTS: [string, string][] = [
   ["#2D1B69", "#11998E"],
@@ -164,6 +156,10 @@ export default function HomeScreen() {
 
   const { data: suggestedEvents = [] } = useQuery(
     trpc.event.getSuggestedEvents.queryOptions(),
+  );
+
+  const { data: peopleToConnect = [] } = useQuery(
+    trpc.user.getReconnectPeople.queryOptions(),
   );
 
   const { data: selectedEvent, isLoading: isLoadingSelected } = useQuery({
@@ -344,9 +340,7 @@ export default function HomeScreen() {
           </View>
         ) : (
           <View style={styles.emptyCarousel}>
-            <Text style={styles.emptyCarouselText}>
-              No upcoming events yet
-            </Text>
+            <Text style={styles.emptyCarouselText}>No upcoming events yet</Text>
             <Text style={styles.emptyCarouselHint}>
               Join events from the Events tab to see them here
             </Text>
@@ -360,34 +354,44 @@ export default function HomeScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.horizontalScroll}
           >
-            {PEOPLE_TO_CONNECT.map((person, index) => (
+            {peopleToConnect.map((person, index) => (
               <Pressable
                 key={person.id}
                 style={styles.personCard}
-                onPress={() =>
-                  router.push(`/(app)/user/${person.id}` as any)
-                }
+                onPress={() => router.push(`/(app)/user/${person.id}` as any)}
               >
-                <LinearGradient
-                  colors={
-                    AVATAR_GRADIENTS[index % AVATAR_GRADIENTS.length]!
-                  }
-                  style={styles.personAvatar}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <Text style={styles.personInitials}>
-                    {getInitials(person.name)}
-                  </Text>
-                </LinearGradient>
+                {(person.image ?? person.avatarUrl) ? (
+                  <Image
+                    source={{ uri: (person.image ?? person.avatarUrl)! }}
+                    style={styles.personAvatar}
+                  />
+                ) : (
+                  <LinearGradient
+                    colors={AVATAR_GRADIENTS[index % AVATAR_GRADIENTS.length]!}
+                    style={styles.personAvatar}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Text style={styles.personInitials}>
+                      {getInitials(person.name)}
+                    </Text>
+                  </LinearGradient>
+                )}
                 <Text style={styles.personName} numberOfLines={1}>
-                  {person.name}
+                  {person.displayName ?? person.name}
                 </Text>
                 <Text style={styles.personMetAt} numberOfLines={1}>
                   Met at {person.metAt}
                 </Text>
               </Pressable>
             ))}
+            {peopleToConnect.length === 0 && (
+              <View style={styles.noPeopleCard}>
+                <Text style={styles.noPeopleText}>
+                  No recent people to reconnect with
+                </Text>
+              </View>
+            )}
           </ScrollView>
         </View>
 
@@ -413,9 +417,7 @@ export default function HomeScreen() {
                   ) : (
                     <LinearGradient
                       colors={
-                        SUGGESTED_GRADIENTS[
-                          index % SUGGESTED_GRADIENTS.length
-                        ]!
+                        SUGGESTED_GRADIENTS[index % SUGGESTED_GRADIENTS.length]!
                       }
                       style={styles.suggestedImage}
                       start={{ x: 0, y: 0 }}
@@ -495,9 +497,7 @@ export default function HomeScreen() {
                 size={28}
                 color="rgba(108, 60, 224, 0.4)"
               />
-              <Text style={styles.suggestedEmptyTitle}>
-                No suggestions yet
-              </Text>
+              <Text style={styles.suggestedEmptyTitle}>No suggestions yet</Text>
               <Text style={styles.suggestedEmptyHint}>
                 Connect with people and add your units to see events your
                 network is attending
@@ -527,11 +527,7 @@ export default function HomeScreen() {
                     style={styles.modalBannerImage}
                   />
                   <LinearGradient
-                    colors={[
-                      "transparent",
-                      "rgba(10, 10, 26, 0.8)",
-                      "#0A0A1A",
-                    ]}
+                    colors={["transparent", "rgba(10, 10, 26, 0.8)", "#0A0A1A"]}
                     style={styles.modalBannerOverlay}
                   />
                 </View>
@@ -542,9 +538,7 @@ export default function HomeScreen() {
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                 >
-                  <View
-                    style={[styles.decorCircle, { top: -30, right: 40 }]}
-                  />
+                  <View style={[styles.decorCircle, { top: -30, right: 40 }]} />
                   <View
                     style={[
                       styles.decorCircle,
@@ -559,11 +553,7 @@ export default function HomeScreen() {
                     ]}
                   />
                   <LinearGradient
-                    colors={[
-                      "transparent",
-                      "rgba(10, 10, 26, 0.8)",
-                      "#0A0A1A",
-                    ]}
+                    colors={["transparent", "rgba(10, 10, 26, 0.8)", "#0A0A1A"]}
                     style={styles.modalBannerOverlay}
                   />
                 </LinearGradient>
@@ -589,11 +579,7 @@ export default function HomeScreen() {
                   <GlassCard style={styles.modalMetaCard}>
                     <View style={styles.modalMetaRow}>
                       <View style={styles.modalMetaIconBg}>
-                        <Ionicons
-                          name="calendar"
-                          size={16}
-                          color="#6C3CE0"
-                        />
+                        <Ionicons name="calendar" size={16} color="#6C3CE0" />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.modalMetaLabel}>Date</Text>
@@ -617,11 +603,7 @@ export default function HomeScreen() {
                     <View style={styles.modalMetaDivider} />
                     <View style={styles.modalMetaRow}>
                       <View style={styles.modalMetaIconBg}>
-                        <Ionicons
-                          name="location"
-                          size={16}
-                          color="#6C3CE0"
-                        />
+                        <Ionicons name="location" size={16} color="#6C3CE0" />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.modalMetaLabel}>Location</Text>
@@ -651,9 +633,7 @@ export default function HomeScreen() {
                           onPress={() => {
                             if (organiser.id !== userId) {
                               setSelectedEventId(null);
-                              router.push(
-                                `/(app)/user/${organiser.id}` as any,
-                              );
+                              router.push(`/(app)/user/${organiser.id}` as any);
                             }
                           }}
                         >
@@ -665,9 +645,7 @@ export default function HomeScreen() {
                           ) : (
                             <LinearGradient
                               colors={
-                                AVATAR_GRADIENTS[
-                                  i % AVATAR_GRADIENTS.length
-                                ]!
+                                AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length]!
                               }
                               style={styles.modalOrganiserAvatar}
                               start={{ x: 0, y: 0 }}
@@ -740,9 +718,7 @@ export default function HomeScreen() {
                       style={styles.modalViewFullButton}
                       onPress={() => {
                         setSelectedEventId(null);
-                        router.push(
-                          `/(app)/event/${selectedEvent.id}` as any,
-                        );
+                        router.push(`/(app)/event/${selectedEvent.id}` as any);
                       }}
                     >
                       <Text style={styles.modalViewFullText}>View Full</Text>
@@ -1023,6 +999,22 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     color: "rgba(255, 255, 255, 0.45)",
     textAlign: "center",
+  },
+  noPeopleCard: {
+    width: SCREEN_WIDTH - 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    paddingVertical: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  noPeopleText: {
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.45)",
+    fontWeight: "500",
   },
 
   suggestedCard: {
