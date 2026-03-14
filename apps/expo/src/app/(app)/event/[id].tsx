@@ -46,9 +46,17 @@ export default function EventDetailScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
   const { data: session } = authClient.useSession();
   const userId = session?.user?.id;
+
+  const handleBackNavigation = useCallback(() => {
+    if (from === "create-event") {
+      router.replace("/(app)/(tabs)/events" as any);
+      return;
+    }
+    router.back();
+  }, [from, router]);
 
   const {
     data: event,
@@ -166,7 +174,7 @@ export default function EventDetailScreen() {
             deleteMutation.mutate(event.id, {
               onSuccess: () => {
                 queryClient.invalidateQueries();
-                router.back();
+                handleBackNavigation();
               },
               onError: (err) =>
                 Alert.alert("Error", err.message || "Failed to delete event."),
@@ -216,7 +224,7 @@ export default function EventDetailScreen() {
           color="rgba(255,255,255,0.2)"
         />
         <Text style={styles.errorText}>Event not found</Text>
-        <Pressable style={styles.errorButton} onPress={() => router.back()}>
+        <Pressable style={styles.errorButton} onPress={handleBackNavigation}>
           <Text style={styles.errorButtonText}>Go Back</Text>
         </Pressable>
       </View>
@@ -276,7 +284,7 @@ export default function EventDetailScreen() {
 
         <Pressable
           style={[styles.closeButton, { top: insets.top + 12 }]}
-          onPress={() => router.back()}
+          onPress={handleBackNavigation}
         >
           <GlassCard style={styles.closeButtonInner}>
             <Ionicons name="close" size={20} color="#FFFFFF" />
@@ -392,11 +400,7 @@ export default function EventDetailScreen() {
                 }
               >
                 <View style={[styles.actionIconBg, styles.actionIconPurple]}>
-                  <Ionicons
-                    name="chatbubbles"
-                    size={16}
-                    color="#6C3CE0"
-                  />
+                  <Ionicons name="chatbubbles" size={16} color="#6C3CE0" />
                 </View>
                 <Text style={styles.actionRowLabel}>Event Chat</Text>
                 <Ionicons
@@ -416,12 +420,10 @@ export default function EventDetailScreen() {
                     ]}
                     onPress={() => setShowQrModal(true)}
                   >
-                    <View style={[styles.actionIconBg, styles.actionIconPurple]}>
-                      <Ionicons
-                        name="qr-code"
-                        size={16}
-                        color="#6C3CE0"
-                      />
+                    <View
+                      style={[styles.actionIconBg, styles.actionIconPurple]}
+                    >
+                      <Ionicons name="qr-code" size={16} color="#6C3CE0" />
                     </View>
                     <Text style={styles.actionRowLabel}>Event QR Code</Text>
                     <Ionicons
@@ -438,12 +440,10 @@ export default function EventDetailScreen() {
                     ]}
                     onPress={handleEdit}
                   >
-                    <View style={[styles.actionIconBg, styles.actionIconPurple]}>
-                      <Ionicons
-                        name="create"
-                        size={16}
-                        color="#6C3CE0"
-                      />
+                    <View
+                      style={[styles.actionIconBg, styles.actionIconPurple]}
+                    >
+                      <Ionicons name="create" size={16} color="#6C3CE0" />
                     </View>
                     <Text style={styles.actionRowLabel}>Edit Event</Text>
                     <Ionicons
@@ -462,11 +462,7 @@ export default function EventDetailScreen() {
                     disabled={deleteMutation.isPending}
                   >
                     <View style={[styles.actionIconBg, styles.actionIconRed]}>
-                      <Ionicons
-                        name="trash"
-                        size={15}
-                        color="#E04882"
-                      />
+                      <Ionicons name="trash" size={15} color="#E04882" />
                     </View>
                     <Text style={styles.actionRowLabelDanger}>
                       Delete Event
@@ -678,7 +674,11 @@ export default function EventDetailScreen() {
                 onPress={() => setShowQrModal(false)}
                 style={styles.qrModalClose}
               >
-                <Ionicons name="close" size={20} color="rgba(255,255,255,0.6)" />
+                <Ionicons
+                  name="close"
+                  size={20}
+                  color="rgba(255,255,255,0.6)"
+                />
               </Pressable>
             </View>
 
@@ -1207,7 +1207,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#FFFFFF",
   },
-
 
   qrOverlay: {
     flex: 1,
