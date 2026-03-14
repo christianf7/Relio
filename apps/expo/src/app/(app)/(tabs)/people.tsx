@@ -472,7 +472,7 @@ export default function PeopleScreen() {
         <View style={styles.matchesSection}>
           <View style={styles.matchesSectionHeader}>
             <View style={styles.matchesLabelRow}>
-              <Ionicons name="heart" size={14} color="#E04882" />
+              <Ionicons name="heart" size={18} style={{ marginBottom: 10 }} color="#E04882" />
               <Text style={styles.sectionLabel}>
                 Matches ({matchList.length})
               </Text>

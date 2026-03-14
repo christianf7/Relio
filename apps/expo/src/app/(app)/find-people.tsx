@@ -1396,6 +1396,7 @@ const styles = StyleSheet.create({
   },
   matchPrimaryButton: {
     borderRadius: 16,
+    paddingHorizontal: 10,
     overflow: "hidden",
   },
   matchPrimaryGradient: {
