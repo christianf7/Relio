@@ -703,6 +703,125 @@ export const eventRouter = {
 
       return { alreadyJoined: false, event: { id: event.id, title: event.title } };
     }),
+
+  checkIn: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const event = await ctx.db.event.findUnique({
+        where: { id: input.eventId },
+        select: {
+          id: true,
+          title: true,
+          participants: { where: { id: ctx.session.user.id }, select: { id: true } },
+        },
+      });
+
+      if (!event) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Event not found." });
+      }
+
+      if (event.participants.length === 0) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You must join the event before checking in.",
+        });
+      }
+
+      const existing = await (ctx.db as any).eventCheckIn.findUnique({
+        where: { eventId_userId: { eventId: input.eventId, userId: ctx.session.user.id } },
+      });
+
+      if (existing) {
+        return { alreadyCheckedIn: true, event: { id: event.id, title: event.title } };
+      }
+
+      await (ctx.db as any).eventCheckIn.create({
+        data: { eventId: input.eventId, userId: ctx.session.user.id },
+      });
+
+      return { alreadyCheckedIn: false, event: { id: event.id, title: event.title } };
+    }),
+
+  getCheckedInUsers: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const checkIns = await (ctx.db as any).eventCheckIn.findMany({
+        where: { eventId: input.eventId },
+        orderBy: { checkedInAt: "desc" },
+        include: {
+          user: {
+            select: { id: true, name: true, displayName: true, image: true, avatarUrl: true },
+          },
+        },
+      });
+
+      return checkIns.map((ci: any) => ({
+        id: ci.user.id,
+        name: ci.user.displayName ?? ci.user.name,
+        image: ci.user.image ?? ci.user.avatarUrl,
+        checkedInAt: ci.checkedInAt,
+      }));
+    }),
+
+  getCheckInStatus: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const [myCheckIn, totalCount] = await Promise.all([
+        (ctx.db as any).eventCheckIn.findUnique({
+          where: { eventId_userId: { eventId: input.eventId, userId: ctx.session.user.id } },
+        }),
+        (ctx.db as any).eventCheckIn.count({ where: { eventId: input.eventId } }),
+      ]);
+
+      return {
+        isCheckedIn: !!myCheckIn,
+        checkedInAt: myCheckIn?.checkedInAt ?? null,
+        totalCheckedIn: totalCount,
+      };
+    }),
+
+  checkOut: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await (ctx.db as any).eventCheckIn.deleteMany({
+        where: { eventId: input.eventId, userId: ctx.session.user.id },
+      });
+      return { success: true };
+    }),
+
+  getMyActiveCheckIn: protectedProcedure.query(async ({ ctx }) => {
+    const checkIn = await (ctx.db as any).eventCheckIn.findFirst({
+      where: {
+        userId: ctx.session.user.id,
+      },
+      orderBy: { checkedInAt: "desc" },
+      include: {
+        event: {
+          include: {
+            organisers: { select: { id: true, name: true, image: true, avatarUrl: true } },
+            participants: { select: { id: true } },
+          },
+        },
+      },
+    });
+
+    if (!checkIn) return null;
+
+    return {
+      checkInId: checkIn.id,
+      checkedInAt: checkIn.checkedInAt,
+      event: {
+        id: checkIn.event.id,
+        title: checkIn.event.title,
+        date: checkIn.event.date,
+        location: checkIn.event.location,
+        bannerUrl: checkIn.event.bannerUrl,
+        content: checkIn.event.content,
+        organisers: checkIn.event.organisers,
+        participantCount: checkIn.event.participants.length,
+      },
+    };
+  }),
 } satisfies TRPCRouterRecord;
 
 /**

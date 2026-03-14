@@ -72,6 +72,13 @@ export default function AppLayout() {
               animation: "slide_from_right",
             }}
           />
+          <Stack.Screen
+            name="event-live/[id]"
+            options={{
+              presentation: "modal",
+              animation: "slide_from_bottom",
+            }}
+          />
         </Stack>
         <OnboardingTooltipOverlay />
       </View>

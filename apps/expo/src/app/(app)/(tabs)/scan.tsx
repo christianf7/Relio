@@ -15,7 +15,7 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import { LinearGradient } from "expo-linear-gradient";
 import { usePathname, useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import FloatingOrbs from "~/components/FloatingOrbs";
 import { GlassCard } from "~/components/GlassCard";
@@ -127,8 +127,14 @@ export default function ScanScreen() {
     }),
   );
 
+  const queryClient = useQueryClient();
+
   const eventJoinMutation = useMutation(
     trpc.event.joinViaQr.mutationOptions(),
+  );
+
+  const checkInMutation = useMutation(
+    (trpc as any).event.checkIn.mutationOptions(),
   );
 
   const resetScanner = useCallback(() => {
@@ -144,12 +150,62 @@ export default function ScanScreen() {
         hasScanned ||
         connectMutation.isPending ||
         eventJoinMutation.isPending ||
+        checkInMutation.isPending ||
         now - lastScanAtRef.current < SCAN_COOLDOWN_MS
       ) {
         return;
       }
 
       lastScanAtRef.current = now;
+
+      const checkInMatch = data.match(/^relio:\/\/checkin\/(.+)$/);
+      if (checkInMatch?.[1]) {
+        const eventId = checkInMatch[1];
+        setHasScanned(true);
+        checkInMutation.mutate(
+          { eventId },
+          {
+            onSuccess: (result) => {
+              void queryClient.invalidateQueries();
+              if (result.alreadyCheckedIn) {
+                Alert.alert(
+                  "Already Checked In",
+                  `You're already checked in to "${result.event.title}".`,
+                  [
+                    {
+                      text: "OK",
+                      onPress: () => {
+                        resetScanner();
+                        router.replace("/(app)/(tabs)" as any);
+                      },
+                    },
+                  ],
+                );
+              } else {
+                Alert.alert(
+                  "Checked In!",
+                  `You've checked in to "${result.event.title}".`,
+                  [
+                    {
+                      text: "OK",
+                      onPress: () => {
+                        resetScanner();
+                        router.replace("/(app)/(tabs)" as any);
+                      },
+                    },
+                  ],
+                );
+              }
+            },
+            onError: (err) => {
+              Alert.alert("Error", err.message, [
+                { text: "OK", onPress: resetScanner },
+              ]);
+            },
+          },
+        );
+        return;
+      }
 
       const eventMatch = data.match(/^relio:\/\/event\/(.+)$/);
       if (eventMatch?.[1]) {
@@ -214,7 +270,7 @@ export default function ScanScreen() {
       setScannedUserId(targetUserId);
       connectMutation.mutate({ userId: targetUserId } as any);
     },
-    [hasScanned, connectMutation, eventJoinMutation, resetScanner, router],
+    [hasScanned, connectMutation, eventJoinMutation, checkInMutation, resetScanner, router, queryClient],
   );
 
   if (!permission) {
@@ -333,11 +389,11 @@ export default function ScanScreen() {
               <View style={styles.overlaySide} />
             </View>
             <View style={styles.overlayBottom}>
-              {connectMutation.isPending || eventJoinMutation.isPending ? (
+              {connectMutation.isPending || eventJoinMutation.isPending || checkInMutation.isPending ? (
                 <View style={styles.scanStatus}>
                   <ActivityIndicator size="small" color="#6C3CE0" />
                   <Text style={styles.scanStatusText}>
-                    {eventJoinMutation.isPending ? "Joining event..." : "Connecting..."}
+                    {checkInMutation.isPending ? "Checking in..." : eventJoinMutation.isPending ? "Joining event..." : "Connecting..."}
                   </Text>
                 </View>
               ) : (

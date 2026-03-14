@@ -76,7 +76,14 @@ export default function EventDetailScreen() {
   const [showAttendees, setShowAttendees] = useState(false);
   const [showTicketConfirm, setShowTicketConfirm] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
+  const [showCheckInQrModal, setShowCheckInQrModal] = useState(false);
   const qrRef = useRef<any>(null);
+  const checkInQrRef = useRef<any>(null);
+
+  const { data: checkInStatus } = useQuery({
+    ...trpc.event.getCheckInStatus.queryOptions({ eventId: id }),
+    enabled: !!event,
+  });
 
   const handleShareQr = useCallback(async () => {
     if (!event) return;
@@ -492,6 +499,34 @@ export default function EventDetailScreen() {
                 />
               </Pressable>
 
+              <View style={styles.actionRowDivider} />
+              <Pressable
+                style={({ pressed }) => [
+                  styles.actionRow,
+                  pressed && styles.actionRowPressed,
+                ]}
+                onPress={() =>
+                  router.push(`/(app)/event-live/${event.id}` as any)
+                }
+              >
+                <View style={[styles.actionIconBg, styles.actionIconGreen]}>
+                  <Ionicons name="people" size={16} color="#11998E" />
+                </View>
+                <Text style={styles.actionRowLabel}>Who's Here</Text>
+                {(checkInStatus?.totalCheckedIn ?? 0) > 0 && (
+                  <View style={styles.checkInBadge}>
+                    <Text style={styles.checkInBadgeText}>
+                      {checkInStatus!.totalCheckedIn}
+                    </Text>
+                  </View>
+                )}
+                <Ionicons
+                  name="chevron-forward"
+                  size={16}
+                  color="rgba(255,255,255,0.25)"
+                />
+              </Pressable>
+
               {isOrganiser && (
                 <>
                   <View style={styles.actionRowDivider} />
@@ -508,6 +543,26 @@ export default function EventDetailScreen() {
                       <Ionicons name="qr-code" size={16} color="#6C3CE0" />
                     </View>
                     <Text style={styles.actionRowLabel}>Event QR Code</Text>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={16}
+                      color="rgba(255,255,255,0.25)"
+                    />
+                  </Pressable>
+                  <View style={styles.actionRowDivider} />
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.actionRow,
+                      pressed && styles.actionRowPressed,
+                    ]}
+                    onPress={() => setShowCheckInQrModal(true)}
+                  >
+                    <View
+                      style={[styles.actionIconBg, styles.actionIconGreen]}
+                    >
+                      <Ionicons name="scan" size={16} color="#11998E" />
+                    </View>
+                    <Text style={styles.actionRowLabel}>Check-in QR Code</Text>
                     <Ionicons
                       name="chevron-forward"
                       size={16}
@@ -811,6 +866,68 @@ export default function EventDetailScreen() {
                 <Text style={styles.qrPrintButtonText}>Print</Text>
               </Pressable>
             </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={showCheckInQrModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCheckInQrModal(false)}
+      >
+        <Pressable
+          style={styles.qrOverlay}
+          onPress={() => setShowCheckInQrModal(false)}
+        >
+          <Pressable style={styles.qrModalCard}>
+            <View style={styles.qrModalHeader}>
+              <Text style={styles.qrModalTitle}>Check-in QR</Text>
+              <Pressable
+                onPress={() => setShowCheckInQrModal(false)}
+                style={styles.qrModalClose}
+              >
+                <Ionicons
+                  name="close"
+                  size={20}
+                  color="rgba(255,255,255,0.6)"
+                />
+              </Pressable>
+            </View>
+
+            <Text style={styles.qrEventName}>{event?.title}</Text>
+
+            <View style={styles.checkInQrBorder}>
+              <View style={styles.qrCodeBackground}>
+                {event?.id && (
+                  <QRCode
+                    getRef={(c) => (checkInQrRef.current = c)}
+                    value={`relio://checkin/${event.id}`}
+                    size={200}
+                    backgroundColor="#FFFFFF"
+                    color="#0A0A1A"
+                    logo={"https://relio-cdn.chrisfitz.dev/relio.png"}
+                    logoSize={44}
+                    logoBackgroundColor="#FFFFFF"
+                    logoMargin={4}
+                    logoBorderRadius={8}
+                  />
+                )}
+              </View>
+            </View>
+
+            <Text style={styles.qrModalHint}>
+              Display this at the venue for attendees to check in
+            </Text>
+
+            {(checkInStatus?.totalCheckedIn ?? 0) > 0 && (
+              <View style={styles.checkInCountRow}>
+                <Ionicons name="people" size={16} color="#11998E" />
+                <Text style={styles.checkInCountText}>
+                  {checkInStatus!.totalCheckedIn} checked in
+                </Text>
+              </View>
+            )}
           </Pressable>
         </Pressable>
       </Modal>
@@ -1460,5 +1577,44 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
     color: "#6C3CE0",
+  },
+
+  actionIconGreen: {
+    backgroundColor: "rgba(17, 153, 142, 0.12)",
+  },
+  checkInBadge: {
+    backgroundColor: "rgba(17, 153, 142, 0.2)",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginRight: 4,
+  },
+  checkInBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#11998E",
+  },
+  checkInQrBorder: {
+    borderRadius: 20,
+    padding: 4,
+    backgroundColor: "rgba(17, 153, 142, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(17, 153, 142, 0.25)",
+    marginBottom: 20,
+  },
+  checkInCountRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: "rgba(17, 153, 142, 0.1)",
+  },
+  checkInCountText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#11998E",
   },
 });
