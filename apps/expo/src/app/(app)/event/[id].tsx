@@ -348,16 +348,24 @@ export default function EventDetailScreen() {
                     }
                   }}
                 >
-                  <LinearGradient
-                    colors={AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length]!}
-                    style={styles.organiserAvatar}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <Text style={styles.organiserInitials}>
-                      {getInitials(organiser.name)}
-                    </Text>
-                  </LinearGradient>
+                  {organiser.image ? (
+                    <Image
+                      source={{ uri: organiser.image }}
+                      style={styles.organiserAvatar}
+                    />
+                  ) : (
+                    <LinearGradient
+                      colors={AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length]!}
+                      style={styles.organiserAvatar}
+                      start={{ x: 0, y: 0 }}
+                      
+                      end={{ x: 1, y: 1 }}
+                    >
+                      <Text style={styles.organiserInitials}>
+                        {getInitials(organiser.name)}
+                      </Text>
+                    </LinearGradient>
+                  )}
                   <Text style={styles.organiserName}>{organiser.name}</Text>
                 </Pressable>
               ))}
