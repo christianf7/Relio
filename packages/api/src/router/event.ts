@@ -225,7 +225,6 @@ export const eventRouter = {
         date: event.date,
         location: event.location,
         bannerUrl: event.bannerUrl,
-        ticketUrl: event.ticketUrl,
         organisers: event.organisers,
         participants: event.participants.map((p) => ({ id: p.id })),
         reason,
