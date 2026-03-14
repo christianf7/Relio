@@ -162,16 +162,10 @@ export default function ProfileScreen() {
           <View style={[styles.topRightButtons, { top: insets.top + 12 }]}>
             <Pressable
               style={styles.headerActionButton}
-              onPress={() =>
-                router.push("/(app)/conversations" as any)
-              }
+              onPress={() => router.push("/(app)/conversations" as any)}
             >
               <GlassCard style={styles.settingsButtonInner}>
-                <Ionicons
-                  name="chatbubble-outline"
-                  size={19}
-                  color="#FFFFFF"
-                />
+                <Ionicons name="chatbubble-outline" size={19} color="#FFFFFF" />
               </GlassCard>
               {unreadDmCount > 0 && (
                 <View style={styles.notifBadge}>
@@ -183,23 +177,15 @@ export default function ProfileScreen() {
             </Pressable>
             <Pressable
               style={styles.headerActionButton}
-              onPress={() =>
-                router.push("/(app)/connection-requests" as any)
-              }
+              onPress={() => router.push("/(app)/connection-requests" as any)}
             >
               <GlassCard style={styles.settingsButtonInner}>
-                <Ionicons
-                  name="mail-outline"
-                  size={19}
-                  color="#FFFFFF"
-                />
+                <Ionicons name="mail-outline" size={19} color="#FFFFFF" />
               </GlassCard>
               {pendingRequestCount > 0 && (
                 <View style={styles.notifBadge}>
                   <Text style={styles.notifBadgeText}>
-                    {pendingRequestCount > 99
-                      ? "99+"
-                      : pendingRequestCount}
+                    {pendingRequestCount > 99 ? "99+" : pendingRequestCount}
                   </Text>
                 </View>
               )}
@@ -209,11 +195,7 @@ export default function ProfileScreen() {
               onPress={() => router.push("/(app)/edit-profile" as any)}
             >
               <GlassCard style={styles.settingsButtonInner}>
-                <Ionicons
-                  name="settings-outline"
-                  size={20}
-                  color="#FFFFFF"
-                />
+                <Ionicons name="settings-outline" size={20} color="#FFFFFF" />
               </GlassCard>
             </Pressable>
           </View>
@@ -265,15 +247,27 @@ export default function ProfileScreen() {
 
         {/* Stats Row */}
         <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
+          <Pressable
+            onPress={() => router.push("/(app)/(tabs)/people" as any)}
+            style={({ pressed }) => [
+              styles.statItem,
+              pressed && styles.statItemPressed,
+            ]}
+          >
             <Text style={styles.statValue}>{connectionsCount}</Text>
             <Text style={styles.statLabel}>connections</Text>
-          </View>
+          </Pressable>
           <View style={styles.statDivider} />
-          <View style={styles.statItem}>
+          <Pressable
+            onPress={() => router.push("/(app)/(tabs)/events" as any)}
+            style={({ pressed }) => [
+              styles.statItem,
+              pressed && styles.statItemPressed,
+            ]}
+          >
             <Text style={styles.statValue}>{eventsCount}</Text>
             <Text style={styles.statLabel}>events</Text>
-          </View>
+          </Pressable>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{enrolledUnits.length}</Text>
@@ -383,6 +377,11 @@ export default function ProfileScreen() {
                       size={160}
                       backgroundColor="#FFFFFF"
                       color="#0A0A1A"
+                      logo={"https://relio-cdn.chrisfitz.dev/relio.png"}
+                      logoSize={45}
+                      logoBackgroundColor="#333333"
+                      logoMargin={2}
+                      logoBorderRadius={8}
                     />
                   </View>
                   <Text style={styles.qrHint}>
@@ -581,6 +580,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     gap: 2,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  statItemPressed: {
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
   },
   statValue: {
     fontSize: 22,
