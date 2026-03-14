@@ -474,6 +474,54 @@ export const eventRouter = {
       });
     }),
 
+  getConnectionsAtEvent: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      const [currentUser, event] = await Promise.all([
+        ctx.db.user.findUnique({
+          where: { id: userId },
+          select: {
+            connections: { select: { id: true } },
+            connectedBy: { select: { id: true } },
+          },
+        }),
+        ctx.db.event.findUnique({
+          where: { id: input.eventId },
+          select: {
+            participants: { select: { id: true } },
+          },
+        }),
+      ]);
+
+      if (!currentUser || !event) return [];
+
+      const connectionIds = new Set([
+        ...currentUser.connections.map((c) => c.id),
+        ...currentUser.connectedBy.map((c) => c.id),
+      ]);
+
+      const participantIds = new Set(event.participants.map((p) => p.id));
+
+      const overlappingIds = [...connectionIds].filter(
+        (id) => participantIds.has(id) && id !== userId,
+      );
+
+      if (overlappingIds.length === 0) return [];
+
+      return ctx.db.user.findMany({
+        where: { id: { in: overlappingIds } },
+        select: {
+          id: true,
+          name: true,
+          displayName: true,
+          image: true,
+          avatarUrl: true,
+        },
+      });
+    }),
+
   create: protectedProcedure
     .input(
       z.object({

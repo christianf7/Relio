@@ -64,6 +64,11 @@ export default function EventDetailScreen() {
     error,
   } = useQuery(trpc.event.getById.queryOptions({ id }));
 
+  const { data: connectionsGoing } = useQuery({
+    ...trpc.event.getConnectionsAtEvent.queryOptions({ eventId: id }),
+    enabled: !!event,
+  });
+
   const joinMutation = useMutation(trpc.event.joinById.mutationOptions());
   const leaveMutation = useMutation(trpc.event.leaveById.mutationOptions());
   const deleteMutation = useMutation(trpc.event.deleteById.mutationOptions());
@@ -389,6 +394,57 @@ export default function EventDetailScreen() {
               ))}
             </View>
           </View>
+
+          {connectionsGoing && connectionsGoing.length > 0 && (
+            <GlassCard style={styles.connectionsGoingCard}>
+              <View style={styles.connectionsGoingHeader}>
+                <View style={styles.connectionsGoingIconBg}>
+                  <Ionicons name="people" size={14} color="#11998E" />
+                </View>
+                <Text style={styles.connectionsGoingTitle}>
+                  {connectionsGoing.length === 1
+                    ? "1 Connection Going"
+                    : `${connectionsGoing.length} Connections Going`}
+                </Text>
+              </View>
+              <View style={styles.connectionsGoingList}>
+                {connectionsGoing.map((conn, i) => (
+                  <Pressable
+                    key={conn.id}
+                    style={styles.connectionGoingItem}
+                    onPress={() => {
+                      if (conn.id !== userId) {
+                        router.push(`/(app)/user/${conn.id}` as any);
+                      }
+                    }}
+                  >
+                    {conn.image ? (
+                      <Image
+                        source={{ uri: conn.image }}
+                        style={styles.connectionGoingAvatar}
+                      />
+                    ) : (
+                      <LinearGradient
+                        colors={
+                          AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length]!
+                        }
+                        style={styles.connectionGoingAvatar}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                      >
+                        <Text style={styles.connectionGoingInitials}>
+                          {getInitials(conn.name)}
+                        </Text>
+                      </LinearGradient>
+                    )}
+                    <Text style={styles.connectionGoingName} numberOfLines={1}>
+                      {conn.displayName || conn.name.split(" ")[0]}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </GlassCard>
+          )}
 
           <GlassCard style={styles.statsRow}>
             <Pressable
@@ -933,6 +989,63 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.6)",
     textAlign: "center",
     maxWidth: 80,
+  },
+
+  connectionsGoingCard: {
+    borderRadius: 18,
+    padding: 18,
+    gap: 14,
+    borderWidth: 1,
+    borderColor: "rgba(17, 153, 142, 0.12)",
+  },
+  connectionsGoingHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  connectionsGoingIconBg: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: "rgba(17, 153, 142, 0.12)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  connectionsGoingTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#11998E",
+  },
+  connectionsGoingList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 14,
+  },
+  connectionGoingItem: {
+    alignItems: "center",
+    gap: 5,
+    width: 60,
+  },
+  connectionGoingAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "rgba(17, 153, 142, 0.25)",
+  },
+  connectionGoingInitials: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  connectionGoingName: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: "rgba(255,255,255,0.55)",
+    textAlign: "center",
+    maxWidth: 60,
   },
 
   statsRow: {
