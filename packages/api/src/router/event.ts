@@ -380,4 +380,32 @@ export const eventRouter = {
 
       return ctx.db.event.delete({ where: { id: input } });
     }),
+
+  joinViaQr: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const event = await ctx.db.event.findUnique({
+        where: { id: input.eventId },
+        select: {
+          id: true,
+          title: true,
+          participants: { where: { id: ctx.session.user.id }, select: { id: true } },
+        },
+      });
+
+      if (!event) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Event not found." });
+      }
+
+      if (event.participants.length > 0) {
+        return { alreadyJoined: true, event: { id: event.id, title: event.title } };
+      }
+
+      await ctx.db.event.update({
+        where: { id: input.eventId },
+        data: { participants: { connect: { id: ctx.session.user.id } } },
+      });
+
+      return { alreadyJoined: false, event: { id: event.id, title: event.title } };
+    }),
 } satisfies TRPCRouterRecord;
