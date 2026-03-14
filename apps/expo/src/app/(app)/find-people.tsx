@@ -1387,6 +1387,7 @@ const styles = StyleSheet.create({
   },
   matchPrimaryButton: {
     borderRadius: 16,
+    paddingHorizontal: 10,
     overflow: "hidden",
   },
   matchPrimaryGradient: {
@@ -1401,6 +1402,7 @@ const styles = StyleSheet.create({
   },
   matchSecondaryButton: {
     paddingVertical: 14,
+    paddingHorizontal: 10,
     alignItems: "center",
     borderRadius: 16,
     backgroundColor: "rgba(255,255,255,0.06)",
