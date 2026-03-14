@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
   },
 
   filterScroll: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 0,
     gap: 10,
     paddingBottom: 4,
   },
