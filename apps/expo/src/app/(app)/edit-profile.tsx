@@ -56,6 +56,7 @@ export default function EditProfileScreen() {
   const [newUnitUni, setNewUnitUni] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isBannerUploading, setIsBannerUploading] = useState(false);
+  const linkedInLocked = Boolean((profile as any)?.linkedInLocked);
 
   useEffect(() => {
     if (profile) {
