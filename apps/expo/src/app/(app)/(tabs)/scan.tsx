@@ -14,6 +14,7 @@ import QRCode from "react-native-qrcode-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
@@ -90,6 +91,7 @@ function ScanLineAnimation() {
 
 export default function ScanScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { data: session } = authClient.useSession();
   const [permission, requestPermission] = useCameraPermissions();
   const [mode, setMode] = useState<ScanMode>("scan");
@@ -99,10 +101,8 @@ export default function ScanScreen() {
 
   const userId = session?.user?.id ?? "";
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   const { data: profile } = useQuery((trpc as any).user.getMe.queryOptions());
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   const connectMutation = useMutation(
     (trpc as any).connection.connectViaQr.mutationOptions({
       onSuccess: (data: any) => {
@@ -110,13 +110,35 @@ export default function ScanScreen() {
           Alert.alert(
             "Already Connected",
             `You're already connected with ${data.user.displayName ?? data.user.name}.`,
-            [{ text: "OK", onPress: resetScanner }],
+            [
+              {
+                text: "OK",
+                onPress: () => {
+                  resetScanner();
+                  const targetId = data?.user?.id ?? scannedUserId;
+                  if (targetId) {
+                    router.push(`/(app)/user/${targetId}` as any);
+                  }
+                },
+              },
+            ],
           );
         } else {
           Alert.alert(
             "Connected!",
             `You are now connected with ${data.user.displayName ?? data.user.name}.`,
-            [{ text: "OK", onPress: resetScanner }],
+            [
+              {
+                text: "OK",
+                onPress: () => {
+                  resetScanner();
+                  const targetId = data?.user?.id ?? scannedUserId;
+                  if (targetId) {
+                    router.push(`/(app)/user/${targetId}` as any);
+                  }
+                },
+              },
+            ],
           );
         }
       },
