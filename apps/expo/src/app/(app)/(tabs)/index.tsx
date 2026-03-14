@@ -106,11 +106,6 @@ function SectionHeader({ title }: { title: string }) {
   return (
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionTitle}>{title}</Text>
-      <Pressable>
-        <View style={styles.arrowCircle}>
-          <Text style={styles.arrowText}>→</Text>
-        </View>
-      </Pressable>
     </View>
   );
 }
@@ -252,9 +247,18 @@ export default function HomeScreen() {
             <Text style={styles.greeting}>{getGreeting()},</Text>
             <Text style={styles.userName}>{firstName}</Text>
           </View>
-          <GlassCard style={styles.avatarContainer}>
-            <Text style={styles.avatarText}>{getInitials(fullName)}</Text>
-          </GlassCard>
+          <Pressable onPress={() => router.push("/(app)/profile" as any)}>
+            <GlassCard style={styles.avatarContainer}>
+              {session?.user?.image ? (
+                <Image
+                  source={{ uri: session.user.image }}
+                  style={styles.avatar}
+                />
+              ) : (
+                <Text style={styles.avatarText}>{getInitials(fullName)}</Text>
+              )}
+            </GlassCard>
+          </Pressable>
         </View>
 
         {myUpcomingEvents.length > 0 ? (
@@ -273,62 +277,109 @@ export default function HomeScreen() {
                       router.push(`/(app)/event/${event.id}` as any)
                     }
                   >
-                    <LinearGradient
-                      colors={
-                        CAROUSEL_GRADIENTS[index % CAROUSEL_GRADIENTS.length]!
-                      }
-                      style={styles.carouselGradient}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                    >
-                      <View
-                        style={[styles.decorCircle, { top: -30, right: 40 }]}
-                      />
-                      <View
-                        style={[
-                          styles.decorCircle,
-                          {
-                            width: 120,
-                            height: 120,
-                            borderRadius: 60,
-                            bottom: -40,
-                            right: -20,
-                            opacity: 0.08,
-                          },
-                        ]}
-                      />
-                      <View
-                        style={[
-                          styles.decorCircle,
-                          {
-                            width: 60,
-                            height: 60,
-                            borderRadius: 30,
-                            top: 20,
-                            right: -10,
-                            opacity: 0.12,
-                          },
-                        ]}
-                      />
-                      <View style={styles.carouselContent}>
-                        <View style={styles.carouselTopRow}>
-                          <Text style={styles.carouselLabel}>Upcoming</Text>
-                          <View style={styles.carouselTimeBadge}>
-                            <Text style={styles.carouselTimeText}>
-                              {formatRelativeDate(event.date)}
+                    {event.bannerUrl ? (
+                      <View style={styles.carouselGradient}>
+                        <Image
+                          source={{ uri: event.bannerUrl }}
+                          style={styles.carouselBannerImage}
+                        />
+                        <LinearGradient
+                          colors={[
+                            "rgba(10, 10, 26, 0.2)",
+                            "rgba(10, 10, 26, 0.7)",
+                            "rgba(10, 10, 26, 0.9)",
+                          ]}
+                          style={styles.carouselImageOverlay}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                        />
+                        <View
+                          style={[
+                            styles.carouselContent,
+                            styles.carouselContentPadding,
+                          ]}
+                        >
+                          <View style={styles.carouselTopRow}>
+                            <Text style={styles.carouselLabel}>Upcoming</Text>
+                            <View style={styles.carouselTimeBadge}>
+                              <Text style={styles.carouselTimeText}>
+                                {formatRelativeDate(event.date)}
+                              </Text>
+                            </View>
+                          </View>
+                          <View style={styles.carouselBottom}>
+                            <Text style={styles.carouselTitle}>
+                              {event.title}
+                            </Text>
+                            <Text style={styles.carouselMeta}>
+                              {event.location}
                             </Text>
                           </View>
                         </View>
-                        <View style={styles.carouselBottom}>
-                          <Text style={styles.carouselTitle}>
-                            {event.title}
-                          </Text>
-                          <Text style={styles.carouselMeta}>
-                            {event.location}
-                          </Text>
-                        </View>
                       </View>
-                    </LinearGradient>
+                    ) : (
+                      <LinearGradient
+                        colors={
+                          CAROUSEL_GRADIENTS[index % CAROUSEL_GRADIENTS.length]!
+                        }
+                        style={styles.carouselGradient}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                      >
+                        <View
+                          style={[styles.decorCircle, { top: -30, right: 40 }]}
+                        />
+                        <View
+                          style={[
+                            styles.decorCircle,
+                            {
+                              width: 120,
+                              height: 120,
+                              borderRadius: 60,
+                              bottom: -40,
+                              right: -20,
+                              opacity: 0.08,
+                            },
+                          ]}
+                        />
+                        <View
+                          style={[
+                            styles.decorCircle,
+                            {
+                              width: 60,
+                              height: 60,
+                              borderRadius: 30,
+                              top: 20,
+                              right: -10,
+                              opacity: 0.12,
+                            },
+                          ]}
+                        />
+                        <View
+                          style={[
+                            styles.carouselContent,
+                            styles.carouselContentPadding,
+                          ]}
+                        >
+                          <View style={styles.carouselTopRow}>
+                            <Text style={styles.carouselLabel}>Upcoming</Text>
+                            <View style={styles.carouselTimeBadge}>
+                              <Text style={styles.carouselTimeText}>
+                                {formatRelativeDate(event.date)}
+                              </Text>
+                            </View>
+                          </View>
+                          <View style={styles.carouselBottom}>
+                            <Text style={styles.carouselTitle}>
+                              {event.title}
+                            </Text>
+                            <Text style={styles.carouselMeta}>
+                              {event.location}
+                            </Text>
+                          </View>
+                        </View>
+                      </LinearGradient>
+                    )}
                   </Pressable>
                 </View>
               ))}
@@ -843,13 +894,24 @@ const styles = StyleSheet.create({
   },
   carouselGradient: {
     height: 180,
-    padding: 24,
     position: "relative",
     overflow: "hidden",
+  },
+  carouselBannerImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  carouselImageOverlay: {
+    ...StyleSheet.absoluteFillObject,
   },
   carouselContent: {
     flex: 1,
     justifyContent: "space-between",
+  },
+  carouselContentPadding: {
+    padding: 24,
   },
   carouselTopRow: {
     flexDirection: "row",
@@ -965,6 +1027,11 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "600",
     marginTop: -1,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
 
   horizontalScroll: {
