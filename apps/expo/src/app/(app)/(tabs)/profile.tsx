@@ -350,19 +350,21 @@ export default function ProfileScreen() {
                   </Pressable>
                 ) : null}
                 {socials?.discordUsername ? (
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.socialCard,
-                      pressed && styles.socialCardPressed,
-                    ]}
-                  >
+                  <Pressable style={() => [styles.socialCard]}>
                     <Ionicons name="logo-discord" size={22} color="#5865F2" />
                     <Text style={styles.socialCardLabel}>Discord</Text>
-                    <Ionicons
-                      name="open-outline"
-                      size={12}
-                      color="rgba(255,255,255,0.3)"
-                    />
+                    <Text
+                      style={{
+                        marginLeft: "auto",
+                        fontSize: 15,
+                        fontWeight: 500,
+                        color: "#FFFFFF",
+                        opacity: 70,
+                      }}
+                    >
+                      {" "}
+                      {socials.discordUsername}
+                    </Text>
                   </Pressable>
                 ) : null}
               </View>
