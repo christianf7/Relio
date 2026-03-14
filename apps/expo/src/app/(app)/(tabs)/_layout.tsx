@@ -1,12 +1,21 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useQuery } from "@tanstack/react-query";
 import {
+  Badge,
   Icon,
   Label,
   NativeTabs,
   VectorIcon,
 } from "expo-router/unstable-native-tabs";
 
+import { trpc } from "~/utils/api";
+
 export default function TabsLayout() {
+  const { data: profile } = useQuery(trpc.user.getMe.queryOptions());
+  const pendingCount =
+    (profile as { pendingRequestCount?: number } | null | undefined)
+      ?.pendingRequestCount ?? 0;
+
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
@@ -47,6 +56,9 @@ export default function TabsLayout() {
           androidSrc={<VectorIcon family={Ionicons} name="person" />}
         />
         <Label>Profile</Label>
+        <Badge hidden={pendingCount === 0}>
+          {pendingCount > 0 ? String(pendingCount) : undefined}
+        </Badge>
       </NativeTabs.Trigger>
     </NativeTabs>
   );

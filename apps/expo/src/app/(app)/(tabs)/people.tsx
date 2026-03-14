@@ -252,6 +252,9 @@ export default function PeopleScreen() {
         queryClient.invalidateQueries({
           queryKey: [["connection", "getIncomingRequests"]],
         });
+        queryClient.invalidateQueries({
+          queryKey: [["user", "getMe"]],
+        });
         setAcceptingId(null);
       },
       onError: () => setAcceptingId(null),
@@ -263,6 +266,9 @@ export default function PeopleScreen() {
       onSuccess: () => {
         queryClient.invalidateQueries({
           queryKey: [["connection", "getIncomingRequests"]],
+        });
+        queryClient.invalidateQueries({
+          queryKey: [["user", "getMe"]],
         });
         setDecliningId(null);
       },

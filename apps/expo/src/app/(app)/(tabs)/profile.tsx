@@ -110,6 +110,7 @@ export default function ProfileScreen() {
 
   const connectionsCount = profile?.connectionsCount ?? 0;
   const eventsCount = profile?.eventsCount ?? 0;
+  const pendingRequestCount = profile?.pendingRequestCount ?? 0;
   const userId = profile?.id ?? session?.user?.id ?? "";
 
   const socials = useMemo(() => {
@@ -184,15 +185,44 @@ export default function ProfileScreen() {
             />
           </LinearGradient>
 
-          {/* Settings button */}
-          <Pressable
-            style={[styles.settingsButton, { top: insets.top + 12 }]}
-            onPress={() => router.push("/(app)/edit-profile" as any)}
-          >
-            <GlassCard style={styles.settingsButtonInner}>
-              <Ionicons name="settings-outline" size={20} color="#FFFFFF" />
-            </GlassCard>
-          </Pressable>
+          {/* Top-right buttons */}
+          <View style={[styles.topRightButtons, { top: insets.top + 12 }]}>
+            <Pressable
+              style={styles.headerActionButton}
+              onPress={() =>
+                router.push("/(app)/connection-requests" as any)
+              }
+            >
+              <GlassCard style={styles.settingsButtonInner}>
+                <Ionicons
+                  name="mail-outline"
+                  size={19}
+                  color="#FFFFFF"
+                />
+              </GlassCard>
+              {pendingRequestCount > 0 && (
+                <View style={styles.notifBadge}>
+                  <Text style={styles.notifBadgeText}>
+                    {pendingRequestCount > 99
+                      ? "99+"
+                      : pendingRequestCount}
+                  </Text>
+                </View>
+              )}
+            </Pressable>
+            <Pressable
+              style={styles.headerActionButton}
+              onPress={() => router.push("/(app)/edit-profile" as any)}
+            >
+              <GlassCard style={styles.settingsButtonInner}>
+                <Ionicons
+                  name="settings-outline"
+                  size={20}
+                  color="#FFFFFF"
+                />
+              </GlassCard>
+            </Pressable>
+          </View>
 
           {/* Avatar overlay */}
           <View style={styles.avatarWrapper}>
@@ -434,10 +464,15 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.08)",
   },
 
-  settingsButton: {
+  topRightButtons: {
     position: "absolute",
-    right: 20,
+    right: 16,
     zIndex: 10,
+    flexDirection: "row",
+    gap: 8,
+  },
+  headerActionButton: {
+    position: "relative",
   },
   settingsButtonInner: {
     width: 40,
@@ -445,6 +480,26 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
+  },
+  notifBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#E04882",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 5,
+    borderWidth: 2,
+    borderColor: "#0A0A1A",
+    zIndex: 10,
+  },
+  notifBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
 
   avatarWrapper: {

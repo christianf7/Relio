@@ -113,65 +113,125 @@ export const eventRouter = {
       });
     }),
   getSuggestedEvents: protectedProcedure.query(async ({ ctx }) => {
+    const userId = ctx.session.user.id;
+
     const currentUser = await ctx.db.user.findUnique({
-      where: { id: ctx.session.user.id },
+      where: { id: userId },
       select: {
         enrolledUnits: true,
         upcomingEvents: { select: { id: true } },
         organisedEvents: { select: { id: true } },
+        connections: { select: { id: true } },
+        connectedBy: { select: { id: true } },
       },
     });
 
     if (!currentUser) return [];
 
+    const myEventIds = new Set([
+      ...currentUser.upcomingEvents.map((e) => e.id),
+      ...currentUser.organisedEvents.map((e) => e.id),
+    ]);
+
+    const connectionIds = [
+      ...new Set([
+        ...currentUser.connections.map((c) => c.id),
+        ...currentUser.connectedBy.map((c) => c.id),
+      ]),
+    ];
+
     const units = Array.isArray(currentUser.enrolledUnits)
       ? (currentUser.enrolledUnits as { code: string; university: string }[])
       : [];
-
-    if (units.length === 0) return [];
-
-    const myEventIds = [
-      ...currentUser.upcomingEvents.map((e) => e.id),
-      ...currentUser.organisedEvents.map((e) => e.id),
-    ];
-
     const unitCodes = units.map((u) => u.code);
 
-    const similarUsers = await ctx.db.user.findMany({
-      where: {
-        id: { not: ctx.session.user.id },
-        OR: unitCodes.map((code) => ({
-          enrolledUnits: {
-            array_contains: [{ code }],
-          },
-        })),
-      },
-      select: { id: true },
-      take: 100,
-    });
+    let similarUserIds: string[] = [];
+    if (unitCodes.length > 0) {
+      const similarUsers = await ctx.db.user.findMany({
+        where: {
+          id: { not: userId },
+          OR: unitCodes.map((code) => ({
+            enrolledUnits: { array_contains: [{ code }] },
+          })),
+        },
+        select: { id: true },
+        take: 100,
+      });
+      similarUserIds = similarUsers.map((u) => u.id);
+    }
 
-    if (similarUsers.length === 0) return [];
+    const relevantUserIds = [...new Set([...connectionIds, ...similarUserIds])];
+    if (relevantUserIds.length === 0) return [];
 
-    const similarUserIds = similarUsers.map((u) => u.id);
+    const connectionIdSet = new Set(connectionIds);
+    const similarUserIdSet = new Set(similarUserIds);
 
-    return ctx.db.event.findMany({
+    const events = await ctx.db.event.findMany({
       where: {
         date: { gte: new Date() },
-        ...(myEventIds.length > 0 ? { id: { notIn: myEventIds } } : {}),
+        ...(myEventIds.size > 0 ? { id: { notIn: [...myEventIds] } } : {}),
         participants: {
-          some: { id: { in: similarUserIds } },
+          some: { id: { in: relevantUserIds } },
         },
       },
       orderBy: { date: "asc" },
-      take: 10,
+      take: 15,
       include: {
         organisers: {
           select: { id: true, name: true },
         },
         participants: {
-          select: { id: true },
+          select: { id: true, name: true },
         },
       },
+    });
+
+    return events.map((event) => {
+      const connectionsGoing = event.participants.filter((p) =>
+        connectionIdSet.has(p.id),
+      );
+      const unitPeersGoing = event.participants.filter((p) =>
+        similarUserIdSet.has(p.id),
+      );
+
+      let reason = "";
+      if (connectionsGoing.length > 0 && unitPeersGoing.length > 0) {
+        const names = connectionsGoing
+          .slice(0, 2)
+          .map((p) => p.name.split(" ")[0]);
+        const extra = connectionsGoing.length - names.length;
+        reason =
+          extra > 0
+            ? `${names.join(", ")} +${extra} connections & classmates going`
+            : `${names.join(" & ")} & classmates going`;
+      } else if (connectionsGoing.length > 0) {
+        const names = connectionsGoing
+          .slice(0, 2)
+          .map((p) => p.name.split(" ")[0]);
+        const extra = connectionsGoing.length - names.length;
+        reason =
+          extra > 0
+            ? `${names.join(", ")} +${extra} more connections going`
+            : connectionsGoing.length === 1
+              ? `${names[0]} is going`
+              : `${names.join(" & ")} are going`;
+      } else if (unitPeersGoing.length > 0) {
+        reason = `Popular with students in your units`;
+      }
+
+      return {
+        id: event.id,
+        title: event.title,
+        date: event.date,
+        location: event.location,
+        bannerUrl: event.bannerUrl,
+        ticketUrl: event.ticketUrl,
+        organisers: event.organisers,
+        participants: event.participants.map((p) => ({ id: p.id })),
+        reason,
+        connectionsGoingCount: connectionsGoing.length,
+        unitPeersGoingCount: unitPeersGoing.length,
+      };
     });
   }),
 

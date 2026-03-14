@@ -154,6 +154,7 @@ export default function UserProfileScreen() {
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: [["user", "getById"]] });
     queryClient.invalidateQueries({ queryKey: [["connection"]] });
+    queryClient.invalidateQueries({ queryKey: [["user", "getMe"]] });
   };
 
   const handleConnect = () => {

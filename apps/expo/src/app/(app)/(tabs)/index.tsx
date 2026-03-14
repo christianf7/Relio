@@ -391,9 +391,9 @@ export default function HomeScreen() {
           </ScrollView>
         </View>
 
-        {suggestedEvents.length > 0 && (
-          <View style={styles.section}>
-            <SectionHeader title="Events you may be interested in" />
+        <View style={styles.section}>
+          <SectionHeader title="Events you may be interested in" />
+          {suggestedEvents.length > 0 ? (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -449,9 +449,29 @@ export default function HomeScreen() {
                     </LinearGradient>
                   )}
                   <View style={styles.suggestedInfo}>
-                    <Text style={styles.suggestedOrganiser}>
-                      {event.organisers.map((o) => o.name).join(", ")}
-                    </Text>
+                    {event.reason ? (
+                      <View style={styles.suggestedReasonRow}>
+                        <Ionicons
+                          name={
+                            event.connectionsGoingCount > 0
+                              ? "people"
+                              : "school"
+                          }
+                          size={11}
+                          color="#6C3CE0"
+                        />
+                        <Text
+                          style={styles.suggestedReasonText}
+                          numberOfLines={1}
+                        >
+                          {event.reason}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.suggestedOrganiser}>
+                        {event.organisers.map((o: any) => o.name).join(", ")}
+                      </Text>
+                    )}
                     <Text style={styles.suggestedTitle} numberOfLines={1}>
                       {event.title}
                     </Text>
@@ -468,8 +488,23 @@ export default function HomeScreen() {
                 </Pressable>
               ))}
             </ScrollView>
-          </View>
-        )}
+          ) : (
+            <View style={styles.suggestedEmpty}>
+              <Ionicons
+                name="sparkles-outline"
+                size={28}
+                color="rgba(108, 60, 224, 0.4)"
+              />
+              <Text style={styles.suggestedEmptyTitle}>
+                No suggestions yet
+              </Text>
+              <Text style={styles.suggestedEmptyHint}>
+                Connect with people and add your units to see events your
+                network is attending
+              </Text>
+            </View>
+          )}
+        </View>
       </ScrollView>
 
       <Modal
@@ -1037,6 +1072,40 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "500",
     color: "rgba(255, 255, 255, 0.45)",
+  },
+  suggestedReasonRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  suggestedReasonText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "rgba(108, 60, 224, 0.85)",
+    flex: 1,
+  },
+  suggestedEmpty: {
+    marginHorizontal: 24,
+    paddingVertical: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.06)",
+    borderStyle: "dashed",
+    alignItems: "center",
+    gap: 8,
+  },
+  suggestedEmptyTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "rgba(255, 255, 255, 0.35)",
+  },
+  suggestedEmptyHint: {
+    fontSize: 13,
+    fontWeight: "400",
+    color: "rgba(255, 255, 255, 0.2)",
+    textAlign: "center",
+    paddingHorizontal: 32,
   },
 
   modalContainer: {

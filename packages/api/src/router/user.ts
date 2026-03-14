@@ -6,19 +6,27 @@ import { protectedProcedure } from "../trpc";
 
 export const userRouter = {
   getMe: protectedProcedure.query(async ({ ctx }) => {
-    const user = await ctx.db.user.findUnique({
-      where: { id: ctx.session.user.id },
-      include: {
-        _count: {
-          select: {
-            connections: true,
-            connectedBy: true,
-            upcomingEvents: true,
-            organisedEvents: true,
+    const [user, pendingRequestCount] = await Promise.all([
+      ctx.db.user.findUnique({
+        where: { id: ctx.session.user.id },
+        include: {
+          _count: {
+            select: {
+              connections: true,
+              connectedBy: true,
+              upcomingEvents: true,
+              organisedEvents: true,
+            },
           },
         },
-      },
-    });
+      }),
+      ctx.db.connectionRequest.count({
+        where: {
+          receiverId: ctx.session.user.id,
+          status: "PENDING",
+        },
+      }),
+    ]);
 
     if (!user) return null;
 
@@ -32,6 +40,7 @@ export const userRouter = {
       ...rest,
       connectionsCount,
       eventsCount,
+      pendingRequestCount,
     };
   }),
 
