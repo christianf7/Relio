@@ -4,7 +4,6 @@ import {
   Alert,
   Animated,
   Dimensions,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -18,42 +17,16 @@ import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
+import FloatingOrbs from "~/components/FloatingOrbs";
+import { GlassCard } from "~/components/GlassCard";
 import { trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
-
-let GlassView: React.ComponentType<any> | null = null;
-try {
-  GlassView = require("expo-glass-effect").GlassView;
-} catch {
-  GlassView = null;
-}
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SCAN_AREA_SIZE = SCREEN_WIDTH * 0.65;
 const SCAN_COOLDOWN_MS = 1000;
 
 type ScanMode = "scan" | "myqr";
-
-function GlassCard({
-  children,
-  style,
-}: {
-  children: React.ReactNode;
-  style?: any;
-}) {
-  if (GlassView && Platform.OS === "ios") {
-    return (
-      <GlassView glassEffectStyle="regular" style={[styles.glassBase, style]}>
-        {children}
-      </GlassView>
-    );
-  }
-  return (
-    <View style={[styles.glassBase, styles.glassFallback, style]}>
-      {children}
-    </View>
-  );
-}
 
 function ScanLineAnimation() {
   const translateY = useRef(new Animated.Value(0)).current;
@@ -232,6 +205,7 @@ export default function ScanScreen() {
 
   return (
     <View style={styles.container}>
+      <FloatingOrbs opacity={0.5} />
       {/* Mode Toggle */}
       <View style={[styles.toggleContainer, { top: insets.top + 12 }]}>
         <GlassCard style={styles.toggleCard}>
@@ -550,14 +524,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
     maxWidth: 260,
     lineHeight: 20,
-  },
-
-  glassBase: {
-    overflow: "hidden",
-  },
-  glassFallback: {
-    backgroundColor: "rgba(255, 255, 255, 0.07)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
   },
 });

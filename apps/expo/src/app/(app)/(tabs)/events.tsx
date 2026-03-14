@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
-  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -18,15 +17,10 @@ import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import FloatingOrbs from "~/components/FloatingOrbs";
+import { GlassCard } from "~/components/GlassCard";
 import { trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
-
-let GlassView: React.ComponentType<any> | null = null;
-try {
-  GlassView = require("expo-glass-effect").GlassView;
-} catch {
-  GlassView = null;
-}
 
 type FilterType = "All" | "Upcoming" | "This Week" | "My Events" | "Past";
 const FILTERS: FilterType[] = [
@@ -53,27 +47,6 @@ function formatEventDate(date: Date | string): string {
     month: "long",
     year: "numeric",
   });
-}
-
-function GlassCard({
-  children,
-  style,
-}: {
-  children: React.ReactNode;
-  style?: any;
-}) {
-  if (GlassView && Platform.OS === "ios") {
-    return (
-      <GlassView glassEffectStyle="regular" style={[styles.glassBase, style]}>
-        {children}
-      </GlassView>
-    );
-  }
-  return (
-    <View style={[styles.glassBase, styles.glassFallback, style]}>
-      {children}
-    </View>
-  );
 }
 
 function EventCard({
@@ -339,6 +312,7 @@ export default function EventsScreen() {
 
   return (
     <View style={styles.container}>
+      <FloatingOrbs opacity={0.5} />
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.pageTitle}>Events</Text>
         <Pressable
@@ -579,14 +553,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#6C3CE0",
-  },
-
-  glassBase: {
-    overflow: "hidden",
-  },
-  glassFallback: {
-    backgroundColor: "rgba(255, 255, 255, 0.07)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
   },
 });

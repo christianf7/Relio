@@ -19,39 +19,12 @@ import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { GlassCard } from "~/components/GlassCard";
 import { trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
 import { getBaseUrl } from "~/utils/base-url";
 
-let GlassView: React.ComponentType<any> | null = null;
-try {
-  GlassView = require("expo-glass-effect").GlassView;
-} catch {
-  GlassView = null;
-}
-
 type EnrolledUnit = { code: string; university: string };
-
-function GlassCard({
-  children,
-  style,
-}: {
-  children: React.ReactNode;
-  style?: any;
-}) {
-  if (GlassView && Platform.OS === "ios") {
-    return (
-      <GlassView glassEffectStyle="regular" style={[styles.glassBase, style]}>
-        {children}
-      </GlassView>
-    );
-  }
-  return (
-    <View style={[styles.glassBase, styles.glassFallback, style]}>
-      {children}
-    </View>
-  );
-}
 
 function getInitials(name: string): string {
   return name
@@ -577,14 +550,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#FFFFFF",
     padding: 0,
-  },
-
-  glassBase: {
-    overflow: "hidden",
-  },
-  glassFallback: {
-    backgroundColor: "rgba(255, 255, 255, 0.07)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
   },
 });

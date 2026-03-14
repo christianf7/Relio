@@ -4,7 +4,6 @@ import {
   Dimensions,
   Image,
   Linking,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,6 +17,8 @@ import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
 
+import FloatingOrbs from "~/components/FloatingOrbs";
+import { GlassCard } from "~/components/GlassCard";
 import { trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
 
@@ -25,35 +26,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const BANNER_HEIGHT = 220;
 const AVATAR_SIZE = 110;
 
-let GlassView: React.ComponentType<any> | null = null;
-try {
-  GlassView = require("expo-glass-effect").GlassView;
-} catch {
-  GlassView = null;
-}
-
 type EnrolledUnit = { code: string; university: string };
-
-function GlassCard({
-  children,
-  style,
-}: {
-  children: React.ReactNode;
-  style?: any;
-}) {
-  if (GlassView && Platform.OS === "ios") {
-    return (
-      <GlassView glassEffectStyle="regular" style={[styles.glassBase, style]}>
-        {children}
-      </GlassView>
-    );
-  }
-  return (
-    <View style={[styles.glassBase, styles.glassFallback, style]}>
-      {children}
-    </View>
-  );
-}
 
 function getInitials(name: string): string {
   return name
@@ -138,6 +111,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
+      <FloatingOrbs opacity={0.5} />
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
         showsVerticalScrollIndicator={false}
@@ -751,14 +725,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "500",
     color: "rgba(255, 255, 255, 0.45)",
-  },
-
-  glassBase: {
-    overflow: "hidden",
-  },
-  glassFallback: {
-    backgroundColor: "rgba(255, 255, 255, 0.07)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
   },
 });
