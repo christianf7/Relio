@@ -28,6 +28,14 @@ const AVATAR_GRADIENTS: [string, string][] = [
   ["#2D1B69", "#6C3CE0"],
 ];
 
+function getGradientForId(id: string): [string, string] {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length]!;
+}
+
 function getInitials(name: string): string {
   return name
     .split(" ")
@@ -73,6 +81,22 @@ type PendingRequest = {
   };
 };
 
+type MatchItem = {
+  matchedAt: string | Date;
+  user: {
+    id: string;
+    name: string;
+    displayName: string | null;
+    image: string | null;
+    university: string | null;
+    nextEvent: {
+      id: string;
+      title: string;
+      date: string | Date;
+    } | null;
+  };
+};
+
 function ConnectionCard({
   item,
   index,
@@ -113,6 +137,56 @@ function ConnectionCard({
       <Text style={styles.connectionTime}>
         {timeAgo(item.connectedAt)}
       </Text>
+    </Pressable>
+  );
+}
+
+function MatchCard({
+  match,
+  onPress,
+}: {
+  match: MatchItem;
+  onPress: () => void;
+}) {
+  const name = match.user.displayName ?? match.user.name;
+  const gradient = getGradientForId(match.user.id);
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.matchCard,
+        pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
+      ]}
+    >
+      <View style={styles.matchAvatarWrap}>
+        {match.user.image ? (
+          <Image source={{ uri: match.user.image }} style={styles.matchAvatar} />
+        ) : (
+          <LinearGradient
+            colors={gradient}
+            style={styles.matchAvatar}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Text style={styles.matchInitials}>{getInitials(name)}</Text>
+          </LinearGradient>
+        )}
+        <View style={styles.matchBadge}>
+          <Ionicons name="heart" size={10} color="#FFFFFF" />
+        </View>
+      </View>
+      <Text style={styles.matchName} numberOfLines={1}>{name}</Text>
+      {match.user.nextEvent ? (
+        <View style={styles.matchMeetWrap}>
+          <Ionicons name="location" size={10} color="#FCD34D" />
+          <Text style={styles.matchMeetText} numberOfLines={1}>
+            {match.user.nextEvent.title}
+          </Text>
+        </View>
+      ) : match.user.university ? (
+        <Text style={styles.matchUniText} numberOfLines={1}>{match.user.university}</Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -216,6 +290,12 @@ export default function PeopleScreen() {
     isRefetching: isRefetchingRequests,
   } = useQuery(trpc.connection.getIncomingRequests.queryOptions());
 
+  const {
+    data: matches,
+    refetch: refetchMatches,
+    isRefetching: isRefetchingMatches,
+  } = useQuery(trpc.discover.getMatches.queryOptions());
+
   const acceptMutation = useMutation(
     trpc.connection.acceptConnection.mutationOptions({
       onSuccess: () => {
@@ -263,14 +343,15 @@ export default function PeopleScreen() {
   const handleRefresh = useCallback(() => {
     refetchConnections();
     refetchRequests();
-  }, [refetchConnections, refetchRequests]);
+    refetchMatches();
+  }, [refetchConnections, refetchRequests, refetchMatches]);
 
   const pendingRequests = (incomingRequests ?? []) as PendingRequest[];
-  const isRefetching = isRefetchingConnections || isRefetchingRequests;
+  const matchList = (matches ?? []) as MatchItem[];
+  const isRefetching = isRefetchingConnections || isRefetchingRequests || isRefetchingMatches;
 
   const renderListHeader = () => (
     <View>
-      {/* Search */}
       <GlassCard style={styles.searchBar}>
         <Ionicons
           name="search"
@@ -297,7 +378,6 @@ export default function PeopleScreen() {
         ) : null}
       </GlassCard>
 
-      {/* Find More People */}
       <Pressable
         onPress={() => router.push("/(app)/find-people" as any)}
         style={({ pressed }) => [
@@ -326,7 +406,34 @@ export default function PeopleScreen() {
         </LinearGradient>
       </Pressable>
 
-      {/* Pending Requests */}
+      {matchList.length > 0 && (
+        <View style={styles.matchesSection}>
+          <View style={styles.matchesSectionHeader}>
+            <View style={styles.matchesLabelRow}>
+              <Ionicons name="heart" size={14} color="#E04882" />
+              <Text style={styles.sectionLabel}>
+                Matches ({matchList.length})
+              </Text>
+            </View>
+          </View>
+          <FlatList
+            data={matchList}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.matchesListContent}
+            keyExtractor={(item) => item.user.id}
+            renderItem={({ item }) => (
+              <MatchCard
+                match={item}
+                onPress={() =>
+                  router.push(`/(app)/user/${item.user.id}` as any)
+                }
+              />
+            )}
+          />
+        </View>
+      )}
+
       {pendingRequests.length > 0 ? (
         <View style={styles.requestsSection}>
           <Text style={styles.sectionLabel}>
@@ -354,7 +461,6 @@ export default function PeopleScreen() {
         </View>
       ) : null}
 
-      {/* Connections header */}
       {(filteredConnections.length > 0 || connectionsLoading) ? (
         <Text style={styles.sectionLabel}>
           Connections
@@ -503,6 +609,85 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     color: "rgba(255,255,255,0.7)",
     marginTop: 1,
+  },
+
+  matchesSection: {
+    marginBottom: 20,
+  },
+  matchesSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  matchesLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  matchesListContent: {
+    gap: 12,
+  },
+  matchCard: {
+    width: 110,
+    alignItems: "center",
+    gap: 8,
+  },
+  matchAvatarWrap: {
+    position: "relative",
+  },
+  matchAvatar: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "rgba(108, 60, 224, 0.5)",
+  },
+  matchInitials: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  matchBadge: {
+    position: "absolute",
+    bottom: -1,
+    right: -1,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "#E04882",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#0A0A1A",
+  },
+  matchName: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    textAlign: "center",
+    maxWidth: 100,
+  },
+  matchMeetWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    maxWidth: 100,
+  },
+  matchMeetText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#FCD34D",
+    flexShrink: 1,
+  },
+  matchUniText: {
+    fontSize: 10,
+    fontWeight: "400",
+    color: "rgba(255,255,255,0.4)",
+    textAlign: "center",
+    maxWidth: 100,
   },
 
   requestsSection: {

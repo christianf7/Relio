@@ -4,6 +4,7 @@ import {
   Dimensions,
   Image,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -19,6 +20,7 @@ import {
 } from "react-native-gesture-handler";
 import Animated, {
   Easing,
+  FadeInDown,
   interpolate,
   runOnJS,
   useAnimatedStyle,
@@ -30,7 +32,6 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { GlassCard } from "~/components/GlassCard";
 import { trpc } from "~/utils/api";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -82,6 +83,11 @@ type DiscoverProfile = {
   } | null;
   score: number;
   reasons: string[];
+};
+
+type MatchedInfo = {
+  profile: DiscoverProfile;
+  matchedAt: Date;
 };
 
 function MatchOverlay({
@@ -255,6 +261,140 @@ function MatchOverlay({
   );
 }
 
+function SessionSummary({
+  matches,
+  swipeCount,
+  onViewMatch,
+  onRefresh,
+  onClose,
+}: {
+  matches: MatchedInfo[];
+  swipeCount: number;
+  onViewMatch: (id: string) => void;
+  onRefresh: () => void;
+  onClose: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View style={styles.summaryContainer}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.summaryScroll,
+          { paddingBottom: insets.bottom + 24 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View entering={FadeInDown.delay(100).duration(500)}>
+          <LinearGradient
+            colors={matches.length > 0 ? ["#6C3CE0", "#E04882"] : ["#2C3E50", "#4A5568"]}
+            style={styles.summaryIconWrap}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Ionicons
+              name={matches.length > 0 ? "heart" : "checkmark-done"}
+              size={36}
+              color="#FFFFFF"
+            />
+          </LinearGradient>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(200).duration(500)} style={styles.summaryTextWrap}>
+          <Text style={styles.summaryTitle}>
+            {matches.length > 0 ? "You Got Matches!" : "All Done!"}
+          </Text>
+          <Text style={styles.summarySubtitle}>
+            You swiped through {swipeCount} {swipeCount === 1 ? "person" : "people"}
+            {matches.length > 0
+              ? ` and matched with ${matches.length}!`
+              : ". Check back later for new people!"}
+          </Text>
+        </Animated.View>
+
+        {matches.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(350).duration(500)} style={styles.summaryMatchList}>
+            <Text style={styles.summaryMatchLabel}>Your Matches</Text>
+            {matches.map((match, idx) => {
+              const name = match.profile.displayName ?? match.profile.name;
+              const gradient = getGradientForId(match.profile.id);
+              return (
+                <Pressable
+                  key={match.profile.id}
+                  onPress={() => onViewMatch(match.profile.id)}
+                  style={({ pressed }) => [
+                    styles.summaryMatchCard,
+                    pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] },
+                  ]}
+                >
+                  {match.profile.image ? (
+                    <Image source={{ uri: match.profile.image }} style={styles.summaryAvatar} />
+                  ) : (
+                    <LinearGradient
+                      colors={gradient}
+                      style={styles.summaryAvatar}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                    >
+                      <Text style={styles.summaryAvatarText}>{getInitials(name)}</Text>
+                    </LinearGradient>
+                  )}
+                  <View style={styles.summaryMatchInfo}>
+                    <Text style={styles.summaryMatchName} numberOfLines={1}>{name}</Text>
+                    {match.profile.university && (
+                      <Text style={styles.summaryMatchUni} numberOfLines={1}>
+                        {match.profile.university}
+                      </Text>
+                    )}
+                    {match.profile.nextSharedEvent && (
+                      <View style={styles.summaryMeetBadge}>
+                        <Ionicons name="location" size={11} color="#FCD34D" />
+                        <Text style={styles.summaryMeetText} numberOfLines={1}>
+                          Meet at {match.profile.nextSharedEvent.title}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.3)" />
+                </Pressable>
+              );
+            })}
+          </Animated.View>
+        )}
+
+        <Animated.View entering={FadeInDown.delay(500).duration(500)} style={styles.summaryActions}>
+          <Pressable
+            onPress={onRefresh}
+            style={({ pressed }) => [
+              styles.summaryPrimaryBtn,
+              pressed && { opacity: 0.85 },
+            ]}
+          >
+            <LinearGradient
+              colors={["#6C3CE0", "#9B59E0"]}
+              style={styles.summaryPrimaryGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Ionicons name="refresh" size={18} color="#FFFFFF" />
+              <Text style={styles.summaryPrimaryText}>Find More People</Text>
+            </LinearGradient>
+          </Pressable>
+          <Pressable
+            onPress={onClose}
+            style={({ pressed }) => [
+              styles.summarySecondaryBtn,
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <Text style={styles.summarySecondaryText}>Done</Text>
+          </Pressable>
+        </Animated.View>
+      </ScrollView>
+    </View>
+  );
+}
+
 function SwipeCard({
   profile,
   isTop,
@@ -322,7 +462,7 @@ function SwipeCard({
           { scale: 0.95 },
           { translateY: 12 },
         ],
-        opacity: 0.7,
+        opacity: 0.5,
       };
     }
     return {
@@ -350,7 +490,6 @@ function SwipeCard({
   return (
     <GestureDetector gesture={panGesture}>
       <Animated.View style={[styles.card, cardStyle]}>
-        {/* Card background */}
         {profile.image ? (
           <Image source={{ uri: profile.image }} style={styles.cardImage} />
         ) : (
@@ -369,14 +508,12 @@ function SwipeCard({
           </LinearGradient>
         )}
 
-        {/* Bottom fade */}
         <LinearGradient
-          colors={["transparent", "rgba(0,0,0,0.3)", "rgba(0,0,0,0.85)"]}
+          colors={["transparent", "rgba(0,0,0,0.4)", "rgba(0,0,0,0.92)"]}
           style={styles.cardFade}
-          locations={[0, 0.4, 1]}
+          locations={[0, 0.35, 1]}
         />
 
-        {/* Swipe indicators */}
         {isTop && (
           <>
             <Animated.View style={[styles.swipeLabel, styles.likeLabel, likeStyle]}>
@@ -388,7 +525,6 @@ function SwipeCard({
           </>
         )}
 
-        {/* Card info */}
         <View style={styles.cardInfo}>
           <Text style={styles.cardName} numberOfLines={1}>
             {name}
@@ -407,10 +543,9 @@ function SwipeCard({
             </Text>
           )}
 
-          {/* Reason chips */}
           {profile.reasons.length > 0 && (
             <View style={styles.reasonsRow}>
-              {profile.reasons.slice(0, 3).map((reason, idx) => (
+              {profile.reasons.slice(0, 2).map((reason, idx) => (
                 <View key={idx} style={styles.reasonChip}>
                   <Ionicons
                     name={
@@ -429,7 +564,6 @@ function SwipeCard({
             </View>
           )}
 
-          {/* Shared event highlight */}
           {profile.nextSharedEvent && (
             <View style={styles.sharedEventCard}>
               <Ionicons name="sparkles" size={14} color="#FCD34D" />
@@ -453,6 +587,7 @@ export default function FindPeopleScreen() {
   const [matchedProfile, setMatchedProfile] = useState<DiscoverProfile | null>(null);
   const [showMatch, setShowMatch] = useState(false);
   const [swipeCount, setSwipeCount] = useState(0);
+  const [sessionMatches, setSessionMatches] = useState<MatchedInfo[]>([]);
   const lastSwipedRef = useRef<string | null>(null);
 
   const { data, isLoading, refetch } = useQuery(
@@ -472,9 +607,16 @@ export default function FindPeopleScreen() {
           if (profile) {
             setMatchedProfile(profile);
             setShowMatch(true);
+            setSessionMatches((prev) => [
+              ...prev,
+              { profile, matchedAt: new Date() },
+            ]);
           }
           queryClient.invalidateQueries({
             queryKey: [["connection"]],
+          });
+          queryClient.invalidateQueries({
+            queryKey: [["discover", "getMatches"]],
           });
         }
       },
@@ -493,7 +635,6 @@ export default function FindPeopleScreen() {
   );
 
   const profiles: DiscoverProfile[] = data?.profiles ?? [];
-  const remaining = data?.remaining ?? 0;
   const visibleProfiles = profiles.slice(currentIndex, currentIndex + 2);
 
   const handleSwipe = useCallback(
@@ -545,14 +686,14 @@ export default function FindPeopleScreen() {
   const handleRefresh = useCallback(() => {
     setCurrentIndex(0);
     setSwipeCount(0);
+    setSessionMatches([]);
     refetch();
   }, [refetch]);
 
-  const isOutOfProfiles = currentIndex >= profiles.length;
+  const isOutOfProfiles = !isLoading && profiles.length > 0 && currentIndex >= profiles.length;
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable
           onPress={() => router.back()}
@@ -584,7 +725,6 @@ export default function FindPeopleScreen() {
         </Pressable>
       </View>
 
-      {/* Main card area */}
       <View style={styles.cardsContainer}>
         {isLoading ? (
           <View style={styles.loadingContainer}>
@@ -592,20 +732,26 @@ export default function FindPeopleScreen() {
             <Text style={styles.loadingText}>Finding people for you...</Text>
           </View>
         ) : isOutOfProfiles ? (
+          <SessionSummary
+            matches={sessionMatches}
+            swipeCount={swipeCount}
+            onViewMatch={(id) => router.push(`/(app)/user/${id}` as any)}
+            onRefresh={handleRefresh}
+            onClose={() => router.back()}
+          />
+        ) : profiles.length === 0 ? (
           <View style={styles.emptyContainer}>
             <LinearGradient
-              colors={["#6C3CE0", "#E04882"]}
+              colors={["#2C3E50", "#4A5568"]}
               style={styles.emptyIconWrap}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <Ionicons name="checkmark-done" size={40} color="#FFFFFF" />
+              <Ionicons name="people-outline" size={40} color="#FFFFFF" />
             </LinearGradient>
-            <Text style={styles.emptyTitle}>You're all caught up!</Text>
+            <Text style={styles.emptyTitle}>No one to discover</Text>
             <Text style={styles.emptySubtitle}>
-              {swipeCount > 0
-                ? `You've seen ${swipeCount} ${swipeCount === 1 ? "person" : "people"}. Check back later for more.`
-                : "No new people to discover right now. Join more events to see more people!"}
+              Join more events to see more people here!
             </Text>
             <Pressable
               onPress={handleRefresh}
@@ -646,10 +792,8 @@ export default function FindPeopleScreen() {
         )}
       </View>
 
-      {/* Bottom action buttons */}
       {!isLoading && !isOutOfProfiles && visibleProfiles.length > 0 && (
         <View style={[styles.actions, { paddingBottom: insets.bottom + 16 }]}>
-          {/* Skip */}
           <Pressable
             onPress={() => handleButtonSwipe("LEFT")}
             style={({ pressed }) => [
@@ -661,7 +805,6 @@ export default function FindPeopleScreen() {
             <Ionicons name="close" size={30} color="#FF6B6B" />
           </Pressable>
 
-          {/* Profile peek */}
           <Pressable
             onPress={() => {
               const profile = profiles[currentIndex];
@@ -678,7 +821,6 @@ export default function FindPeopleScreen() {
             <Ionicons name="person" size={22} color="#60A5FA" />
           </Pressable>
 
-          {/* Connect */}
           <Pressable
             onPress={() => handleButtonSwipe("RIGHT")}
             style={({ pressed }) => [
@@ -692,7 +834,6 @@ export default function FindPeopleScreen() {
         </View>
       )}
 
-      {/* Match overlay */}
       <MatchOverlay
         visible={showMatch}
         matchedUser={matchedProfile}
@@ -818,7 +959,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: CARD_HEIGHT * 0.55,
+    height: CARD_HEIGHT * 0.6,
   },
 
   swipeLabel: {
@@ -858,11 +999,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 24,
-    gap: 8,
+    padding: 20,
+    paddingBottom: 22,
+    gap: 6,
   },
   cardName: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "800",
     color: "#FFFFFF",
     letterSpacing: -0.5,
@@ -874,15 +1016,15 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   cardUniText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "500",
     color: "rgba(255,255,255,0.8)",
   },
   cardBio: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "400",
-    color: "rgba(255,255,255,0.6)",
-    lineHeight: 20,
+    color: "rgba(255,255,255,0.55)",
+    lineHeight: 18,
   },
   reasonsRow: {
     flexDirection: "row",
@@ -902,7 +1044,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(108, 60, 224, 0.3)",
   },
   reasonText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
     color: "#C4B5FD",
   },
@@ -911,8 +1053,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     backgroundColor: "rgba(252, 211, 77, 0.15)",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "rgba(252, 211, 77, 0.2)",
@@ -920,7 +1062,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   sharedEventText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
     color: "#FCD34D",
   },
@@ -1019,6 +1161,140 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: "#FFFFFF",
+  },
+
+  // Session summary
+  summaryContainer: {
+    flex: 1,
+    width: "100%",
+  },
+  summaryScroll: {
+    alignItems: "center",
+    paddingHorizontal: 28,
+    paddingTop: 20,
+    gap: 20,
+  },
+  summaryIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  summaryTextWrap: {
+    alignItems: "center",
+    gap: 8,
+  },
+  summaryTitle: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: -0.5,
+  },
+  summarySubtitle: {
+    fontSize: 15,
+    fontWeight: "400",
+    color: "rgba(255,255,255,0.5)",
+    textAlign: "center",
+    lineHeight: 22,
+    maxWidth: 300,
+  },
+  summaryMatchList: {
+    width: "100%",
+    gap: 10,
+  },
+  summaryMatchLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.4)",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginBottom: 2,
+  },
+  summaryMatchCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 16,
+    padding: 14,
+    gap: 14,
+    borderWidth: 1,
+    borderColor: "rgba(108, 60, 224, 0.2)",
+  },
+  summaryAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "rgba(108, 60, 224, 0.4)",
+  },
+  summaryAvatarText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  summaryMatchInfo: {
+    flex: 1,
+    gap: 3,
+  },
+  summaryMatchName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    letterSpacing: -0.2,
+  },
+  summaryMatchUni: {
+    fontSize: 13,
+    fontWeight: "400",
+    color: "rgba(255,255,255,0.45)",
+  },
+  summaryMeetBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 2,
+  },
+  summaryMeetText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#FCD34D",
+  },
+  summaryActions: {
+    width: "100%",
+    gap: 12,
+    marginTop: 8,
+  },
+  summaryPrimaryBtn: {
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  summaryPrimaryGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 16,
+    borderRadius: 16,
+  },
+  summaryPrimaryText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  summarySecondaryBtn: {
+    paddingVertical: 14,
+    alignItems: "center",
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  summarySecondaryText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.5)",
   },
 
   matchOverlay: {
