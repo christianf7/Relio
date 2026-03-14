@@ -54,6 +54,7 @@ export default function EditProfileScreen() {
   const [newUnitCode, setNewUnitCode] = useState("");
   const [newUnitUni, setNewUnitUni] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const linkedInLocked = Boolean((profile as any)?.linkedInLocked);
 
   useEffect(() => {
     if (profile) {
@@ -353,23 +354,6 @@ export default function EditProfileScreen() {
           </GlassCard>
           <GlassCard style={styles.socialInputCard}>
             <Ionicons
-              name="logo-linkedin"
-              size={18}
-              color="rgba(255,255,255,0.5)"
-            />
-            <TextInput
-              style={styles.socialInput}
-              value={linkedInUrl}
-              onChangeText={setLinkedInUrl}
-              placeholder="LinkedIn URL"
-              placeholderTextColor="rgba(255,255,255,0.25)"
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
-            />
-          </GlassCard>
-          <GlassCard style={styles.socialInputCard}>
-            <Ionicons
               name="logo-discord"
               size={18}
               color="rgba(255,255,255,0.5)"
@@ -384,6 +368,36 @@ export default function EditProfileScreen() {
               autoCorrect={false}
             />
           </GlassCard>
+                    <GlassCard style={styles.socialInputCard}>
+            <Ionicons
+              name="logo-linkedin"
+              size={18}
+              color={
+                linkedInLocked
+                  ? "rgba(255,255,255,0.35)"
+                  : "rgba(255,255,255,0.5)"
+              }
+            />
+            <TextInput
+              style={[
+                styles.socialInput,
+                linkedInLocked && styles.socialInputDisabled,
+              ]}
+              value={linkedInUrl}
+              onChangeText={setLinkedInUrl}
+              placeholder="LinkedIn URL"
+              placeholderTextColor="rgba(255,255,255,0.25)"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+              editable={!linkedInLocked}
+            />
+          </GlassCard>
+          {linkedInLocked ? (
+            <Text style={styles.lockedHint}>
+              LinkedIn is managed by your OAuth login and can&apos;t be edited.
+            </Text>
+          ) : null}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -550,5 +564,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#FFFFFF",
     padding: 0,
+  },
+  socialInputDisabled: {
+    color: "rgba(255, 255, 255, 0.45)",
+  },
+  lockedHint: {
+    marginTop: -8,
+    marginBottom: 8,
+    marginLeft: 4,
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.45)",
   },
 });

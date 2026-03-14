@@ -362,11 +362,16 @@ export default function ScanScreen() {
               <GlassCard style={styles.qrCard}>
                 <View style={styles.qrBackground}>
                   <QRCode
-                    value={`relio://connect/${userId}`}
-                    size={200}
-                    backgroundColor="#FFFFFF"
-                    color="#0A0A1A"
-                  />
+                      value={`relio://connect/${userId}`}
+                      size={160}
+                      backgroundColor="#FFFFFF"
+                      color="#0A0A1A"
+                      logo={"https://relio-cdn.chrisfitz.dev/relio.png"}
+                      logoSize={45}
+                      logoBackgroundColor="#333333"
+                      logoMargin={2}
+                      logoBorderRadius={8}
+                    />
                 </View>
               </GlassCard>
             ) : (
@@ -448,7 +453,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 32,
   },
-
   corner: {
     position: "absolute",
     width: 28,

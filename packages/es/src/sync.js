@@ -177,52 +177,32 @@ function updateEventParticipants(client, eventId, participantIds) {
 }
 function updateUserConnections(client, userId, connectionIds) {
     return __awaiter(this, void 0, void 0, function () {
-        var err_3;
-        var _a;
-        return __generator(this, function (_b) {
-            switch (_b.label) {
-                case 0:
-                    _b.trys.push([0, 2, , 3]);
-                    return [4 /*yield*/, client.update({
-                            index: indices_1.USERS_INDEX,
-                            id: userId,
-                            doc: { connectionIds: connectionIds },
-                        })];
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0: return [4 /*yield*/, client.update({
+                        index: indices_1.USERS_INDEX,
+                        id: userId,
+                        doc: { connectionIds: connectionIds },
+                    })];
                 case 1:
-                    _b.sent();
-                    return [3 /*break*/, 3];
-                case 2:
-                    err_3 = _b.sent();
-                    if (((_a = err_3 === null || err_3 === void 0 ? void 0 : err_3.meta) === null || _a === void 0 ? void 0 : _a.statusCode) === 404)
-                        return [2 /*return*/];
-                    throw err_3;
-                case 3: return [2 /*return*/];
+                    _a.sent();
+                    return [2 /*return*/];
             }
         });
     });
 }
 function updateUserEvents(client, userId, upcomingEventIds, organisedEventIds) {
     return __awaiter(this, void 0, void 0, function () {
-        var err_4;
-        var _a;
-        return __generator(this, function (_b) {
-            switch (_b.label) {
-                case 0:
-                    _b.trys.push([0, 2, , 3]);
-                    return [4 /*yield*/, client.update({
-                            index: indices_1.USERS_INDEX,
-                            id: userId,
-                            doc: { upcomingEventIds: upcomingEventIds, organisedEventIds: organisedEventIds },
-                        })];
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0: return [4 /*yield*/, client.update({
+                        index: indices_1.USERS_INDEX,
+                        id: userId,
+                        doc: { upcomingEventIds: upcomingEventIds, organisedEventIds: organisedEventIds },
+                    })];
                 case 1:
-                    _b.sent();
-                    return [3 /*break*/, 3];
-                case 2:
-                    err_4 = _b.sent();
-                    if (((_a = err_4 === null || err_4 === void 0 ? void 0 : err_4.meta) === null || _a === void 0 ? void 0 : _a.statusCode) === 404)
-                        return [2 /*return*/];
-                    throw err_4;
-                case 3: return [2 /*return*/];
+                    _a.sent();
+                    return [2 /*return*/];
             }
         });
     });

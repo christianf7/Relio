@@ -2,8 +2,8 @@ import type { TRPCRouterRecord } from "@trpc/server";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
 
-import { protectedProcedure } from "../trpc";
 import { syncUserToEs } from "../es-sync";
+import { protectedProcedure } from "../trpc";
 
 export const userRouter = {
   getMe: protectedProcedure.query(async ({ ctx }) => {
@@ -11,6 +11,12 @@ export const userRouter = {
       ctx.db.user.findUnique({
         where: { id: ctx.session.user.id },
         include: {
+          accounts: {
+            select: {
+              providerId: true,
+              accountId: true,
+            },
+          },
           _count: {
             select: {
               connections: true,
@@ -43,9 +49,48 @@ export const userRouter = {
     const eventsCount =
       user._count.upcomingEvents + user._count.organisedEvents;
 
+    const linkedInAccount = user.accounts.find(
+      (a) => a.providerId === "linkedin",
+    );
+    const oauthLinkedInUrl = linkedInAccount
+      ? `https://www.linkedin.com/in/${linkedInAccount.accountId}`
+      : null;
+    const socialsObj =
+      user.socials && typeof user.socials === "object"
+        ? ({ ...(user.socials as Record<string, unknown>) } as Record<
+            string,
+            unknown
+          >)
+        : {};
+
+    if (oauthLinkedInUrl) {
+      socialsObj.linkedInUrl = oauthLinkedInUrl;
+
+      const currentLinkedIn =
+        typeof (user.socials as any)?.linkedInUrl === "string"
+          ? ((user.socials as any).linkedInUrl as string)
+          : null;
+
+      if (currentLinkedIn !== oauthLinkedInUrl) {
+        void ctx.db.user.update({
+          where: { id: user.id },
+          data: {
+            socials: {
+              ...(user.socials && typeof user.socials === "object"
+                ? (user.socials as Record<string, unknown>)
+                : {}),
+              linkedInUrl: oauthLinkedInUrl,
+            },
+          },
+        });
+      }
+    }
+
     const { _count, ...rest } = user;
     return {
       ...rest,
+      socials: socialsObj,
+      linkedInLocked: !!oauthLinkedInUrl,
       connectionsCount,
       eventsCount,
       pendingRequestCount,
@@ -78,6 +123,38 @@ export const userRouter = {
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const linkedInAccount = await ctx.db.account.findFirst({
+        where: {
+          userId: ctx.session.user.id,
+          providerId: "linkedin",
+        },
+        select: { accountId: true },
+      });
+
+      const oauthLinkedInUrl = linkedInAccount
+        ? `https://www.linkedin.com/in/${linkedInAccount.accountId}`
+        : null;
+
+      const socialsInput = input.socials
+        ? ({ ...input.socials } as Record<string, string | null | undefined>)
+        : undefined;
+
+      if (oauthLinkedInUrl) {
+        if (socialsInput) {
+          socialsInput.linkedInUrl = oauthLinkedInUrl;
+        } else {
+          input.socials = { linkedInUrl: oauthLinkedInUrl };
+        }
+      }
+
+      if (socialsInput) {
+        input.socials = socialsInput as {
+          githubUrl?: string | null;
+          linkedInUrl?: string | null;
+          discordUsername?: string | null;
+        };
+      }
+
       const result = await ctx.db.user.update({
         where: {
           id: ctx.session.user.id,
