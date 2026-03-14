@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -11,15 +11,16 @@ import {
   TextInput,
   View,
 } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import FloatingOrbs from "~/components/FloatingOrbs";
 import { GlassCard } from "~/components/GlassCard";
 import { trpc } from "~/utils/api";
+import { authClient } from "~/utils/auth";
 
 type FilterType = "All" | "Upcoming" | "This Week" | "My Events" | "Past";
 
@@ -59,6 +60,7 @@ function formatEventDate(date: Date | string): string {
 function EventCard({
   event,
   index,
+  membershipLabel,
   onPress,
 }: {
   event: {
@@ -68,8 +70,10 @@ function EventCard({
     location: string;
     bannerUrl: string | null;
     organisers: { id: string; name: string }[];
+    participants: { id: string }[];
   };
   index: number;
+  membershipLabel: "Organising" | "Joined" | null;
   onPress: () => void;
 }) {
   const gradient = CARD_GRADIENTS[index % CARD_GRADIENTS.length]!;
@@ -112,9 +116,16 @@ function EventCard({
         </LinearGradient>
       )}
       <View style={styles.eventInfo}>
-        <Text style={styles.eventTitle} numberOfLines={1}>
-          {event.title}
-        </Text>
+        <View style={styles.eventTitleRow}>
+          <Text style={styles.eventTitle} numberOfLines={1}>
+            {event.title}
+          </Text>
+          {membershipLabel && (
+            <View style={styles.joinedBadge}>
+              <Text style={styles.joinedBadgeText}>{membershipLabel}</Text>
+            </View>
+          )}
+        </View>
         <View style={styles.eventMetaRow}>
           <Ionicons
             name="location-outline"
@@ -131,9 +142,7 @@ function EventCard({
             size={13}
             color="rgba(255,255,255,0.4)"
           />
-          <Text style={styles.eventDate}>
-            {formatEventDate(event.date)}
-          </Text>
+          <Text style={styles.eventDate}>{formatEventDate(event.date)}</Text>
         </View>
         {event.organisers.length > 0 && (
           <Text style={styles.eventOrganiser} numberOfLines={1}>
@@ -157,6 +166,8 @@ function useDebounce(value: string, delay: number): string {
 export default function EventsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { data: session } = authClient.useSession();
+  const userId = session?.user?.id;
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterType>("All");
   const debouncedSearch = useDebounce(search, 300);
@@ -183,7 +194,22 @@ export default function EventsScreen() {
     }),
   );
 
-  const filteredEvents = Array.isArray(events) ? events : [];
+  const filteredEvents = useMemo(() => {
+    if (!Array.isArray(events)) return [];
+
+    const withMembership = events.map((event: any) => {
+      const isJoined =
+        !!userId &&
+        (event.organisers.some((o: { id: string }) => o.id === userId) ||
+          event.participants.some((p: { id: string }) => p.id === userId));
+
+      return { event, isJoined };
+    });
+
+    return withMembership
+      .sort((a, b) => Number(b.isJoined) - Number(a.isJoined))
+      .map((entry) => entry.event);
+  }, [events, userId]);
 
   const renderEmptyList = () => {
     if (isLoading) {
@@ -230,11 +256,7 @@ export default function EventsScreen() {
   const listHeader = (
     <View style={styles.listHeader}>
       <GlassCard style={styles.searchBar}>
-        <Ionicons
-          name="search"
-          size={18}
-          color="rgba(255, 255, 255, 0.35)"
-        />
+        <Ionicons name="search" size={18} color="rgba(255, 255, 255, 0.35)" />
         <TextInput
           placeholder="Search events..."
           placeholderTextColor="rgba(255, 255, 255, 0.25)"
@@ -312,6 +334,17 @@ export default function EventsScreen() {
           <EventCard
             event={item}
             index={index}
+            membershipLabel={
+              !userId
+                ? null
+                : item.organisers.some((o: { id: string }) => o.id === userId)
+                  ? "Organising"
+                  : item.participants.some(
+                        (p: { id: string }) => p.id === userId,
+                      )
+                    ? "Joined"
+                    : null
+            }
             onPress={() => router.push(`/(app)/event/${item.id}` as any)}
           />
         )}
@@ -465,12 +498,33 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 4,
   },
+  eventTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 2,
+  },
   eventTitle: {
     fontSize: 16,
     fontWeight: "600",
     color: "#FFFFFF",
     letterSpacing: -0.2,
-    marginBottom: 2,
+    flex: 1,
+  },
+  joinedBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: "rgba(108, 60, 224, 0.22)",
+    borderWidth: 1,
+    borderColor: "rgba(108, 60, 224, 0.55)",
+  },
+  joinedBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#C9B3FF",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   eventMetaRow: {
     flexDirection: "row",

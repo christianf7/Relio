@@ -84,9 +84,22 @@ export default function EventDetailScreen() {
     }
   }, [event]);
 
-  const handlePrintQr = useCallback(() => {
-    if (!event || !qrRef.current) return;
-    qrRef.current.toDataURL((base64: string) => {
+  const handlePrintQr = useCallback(async () => {
+    if (!event) return;
+    if (!qrRef.current) {
+      Alert.alert("QR not ready", "Please wait a moment and try again.");
+      return;
+    }
+
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        try {
+          qrRef.current.toDataURL((data: string) => resolve(data));
+        } catch (err) {
+          reject(err);
+        }
+      });
+
       const html = `
         <html>
           <head>
@@ -114,8 +127,13 @@ export default function EventDetailScreen() {
           </body>
         </html>
       `;
-      Print.printAsync({ html }).catch(() => {});
-    });
+      await Print.printAsync({ html });
+    } catch {
+      Alert.alert(
+        "Unable to print",
+        "We couldn't open the print dialog. Please try again.",
+      );
+    }
   }, [event]);
 
   const isOrganiser = useMemo(
@@ -701,6 +719,11 @@ export default function EventDetailScreen() {
                     size={200}
                     backgroundColor="#FFFFFF"
                     color="#0A0A1A"
+                    logo={"https://relio-cdn.chrisfitz.dev/relio.png"}
+                    logoSize={44}
+                    logoBackgroundColor="#FFFFFF"
+                    logoMargin={4}
+                    logoBorderRadius={8}
                   />
                 )}
               </View>

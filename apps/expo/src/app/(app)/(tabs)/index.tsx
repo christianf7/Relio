@@ -1562,6 +1562,7 @@ const styles = StyleSheet.create({
   },
   signalLabel: {
     fontSize: 14,
+    marginTop: 5,
     fontWeight: "600",
     color: "rgba(255,255,255,0.85)",
     lineHeight: 20,

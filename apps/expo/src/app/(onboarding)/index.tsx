@@ -15,16 +15,12 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as SecureStore from "expo-secure-store";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import FloatingOrbs from "~/components/FloatingOrbs";
 import { GlassCard } from "~/components/GlassCard";
@@ -114,7 +110,7 @@ export default function OnboardingScreen() {
   const [newUnitCode, setNewUnitCode] = useState("");
   const [newUnitUni, setNewUnitUni] = useState("");
   const [isUploading, setIsUploading] = useState(false);
-  const [isBannerUploading, setIsBannerUploading] = useState(false);
+  const linkedInLocked = Boolean((profile as any)?.linkedInLocked);
 
   // Role selection
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
@@ -633,23 +629,6 @@ export default function OnboardingScreen() {
               </GlassCard>
               <GlassCard style={styles.socialInputCard}>
                 <Ionicons
-                  name="logo-linkedin"
-                  size={18}
-                  color="rgba(255,255,255,0.5)"
-                />
-                <TextInput
-                  style={styles.socialInput}
-                  value={linkedInUrl}
-                  onChangeText={setLinkedInUrl}
-                  placeholder="LinkedIn URL"
-                  placeholderTextColor="rgba(255,255,255,0.25)"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType="url"
-                />
-              </GlassCard>
-              <GlassCard style={styles.socialInputCard}>
-                <Ionicons
                   name="logo-discord"
                   size={18}
                   color="rgba(255,255,255,0.5)"
@@ -664,6 +643,37 @@ export default function OnboardingScreen() {
                   autoCorrect={false}
                 />
               </GlassCard>
+              <GlassCard style={styles.socialInputCard}>
+                <Ionicons
+                  name="logo-linkedin"
+                  size={18}
+                  color={
+                    linkedInLocked
+                      ? "rgba(255,255,255,0.35)"
+                      : "rgba(255,255,255,0.5)"
+                  }
+                />
+                <TextInput
+                  style={[
+                    styles.socialInput,
+                    linkedInLocked && styles.socialInputDisabled,
+                  ]}
+                  value={linkedInUrl}
+                  onChangeText={setLinkedInUrl}
+                  placeholder="LinkedIn URL"
+                  placeholderTextColor="rgba(255,255,255,0.25)"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="url"
+                  editable={!linkedInLocked}
+                />
+              </GlassCard>
+              {linkedInLocked ? (
+                <Text style={styles.lockedHint}>
+                  LinkedIn is managed by your OAuth login and can&apos;t be
+                  edited.
+                </Text>
+              ) : null}
             </View>
           </ScrollView>
         ) : (
@@ -766,14 +776,7 @@ export default function OnboardingScreen() {
       </Animated.View>
 
       {/* Bottom action bar */}
-      <View
-        style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}
-      >
-        <LinearGradient
-          colors={["transparent", "rgba(10, 10, 26, 0.95)", "#0A0A1A"]}
-          style={styles.bottomGradient}
-          pointerEvents="none"
-        />
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}>
         <View style={styles.bottomBarInner}>
           {step > 0 && (
             <Pressable
@@ -787,7 +790,9 @@ export default function OnboardingScreen() {
             </Pressable>
           )}
           <Pressable
-            onPress={step === TOTAL_STEPS - 1 ? handleGetStarted : handleContinue}
+            onPress={
+              step === TOTAL_STEPS - 1 ? handleGetStarted : handleContinue
+            }
             disabled={isBusy}
             style={({ pressed }) => [
               styles.continueButton,
@@ -804,11 +809,7 @@ export default function OnboardingScreen() {
                   {step === TOTAL_STEPS - 1 ? "Get Started" : "Continue"}
                 </Text>
                 {step < TOTAL_STEPS - 1 && (
-                  <Ionicons
-                    name="arrow-forward"
-                    size={18}
-                    color="#FFFFFF"
-                  />
+                  <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
                 )}
               </>
             )}
@@ -1061,6 +1062,16 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     padding: 0,
   },
+  socialInputDisabled: {
+    color: "rgba(255, 255, 255, 0.45)",
+  },
+  lockedHint: {
+    marginTop: -6,
+    marginBottom: 8,
+    marginLeft: 4,
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.45)",
+  },
 
   // Role selection
   roleContainer: {
@@ -1124,13 +1135,6 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: 24,
     zIndex: 10,
-  },
-  bottomGradient: {
-    position: "absolute",
-    top: -40,
-    left: 0,
-    right: 0,
-    height: 40,
   },
   bottomBarInner: {
     flexDirection: "row",
