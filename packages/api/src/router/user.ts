@@ -30,8 +30,7 @@ export const userRouter = {
 
     if (!user) return null;
 
-    const connectionsCount =
-      user._count.connections + user._count.connectedBy;
+    const connectionsCount = user._count.connections + user._count.connectedBy;
     const eventsCount =
       user._count.upcomingEvents + user._count.organisedEvents;
 
@@ -63,7 +62,7 @@ export const userRouter = {
           .object({
             githubUrl: z.string().nullable().optional(),
             linkedInUrl: z.string().nullable().optional(),
-            discordUrl: z.string().nullable().optional(),
+            discordUsername: z.string().nullable().optional(),
           })
           .optional(),
       }),
@@ -129,8 +128,10 @@ export const userRouter = {
         },
       });
 
-      const connectionsCount = user._count.connections + user._count.connectedBy;
-      const eventsCount = user._count.upcomingEvents + user._count.organisedEvents;
+      const connectionsCount =
+        user._count.connections + user._count.connectedBy;
+      const eventsCount =
+        user._count.upcomingEvents + user._count.organisedEvents;
 
       return {
         id: user.id,

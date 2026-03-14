@@ -10,12 +10,12 @@ import {
   Text,
   View,
 } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import QRCode from "react-native-qrcode-svg";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { LinearGradient } from "expo-linear-gradient";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import QRCode from "react-native-qrcode-svg";
 
 import { trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
@@ -29,6 +29,7 @@ try {
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SCAN_AREA_SIZE = SCREEN_WIDTH * 0.65;
+const SCAN_COOLDOWN_MS = 1000;
 
 type ScanMode = "scan" | "myqr";
 
@@ -76,9 +77,7 @@ function ScanLineAnimation() {
   }, [translateY]);
 
   return (
-    <Animated.View
-      style={[styles.scanLine, { transform: [{ translateY }] }]}
-    >
+    <Animated.View style={[styles.scanLine, { transform: [{ translateY }] }]}>
       <LinearGradient
         colors={["transparent", "#6C3CE0", "transparent"]}
         start={{ x: 0, y: 0 }}
@@ -96,13 +95,12 @@ export default function ScanScreen() {
   const [mode, setMode] = useState<ScanMode>("scan");
   const [scannedUserId, setScannedUserId] = useState<string | null>(null);
   const [hasScanned, setHasScanned] = useState(false);
+  const lastScanAtRef = useRef(0);
 
   const userId = session?.user?.id ?? "";
 
   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-  const { data: profile } = useQuery(
-    (trpc as any).user.getMe.queryOptions(),
-  );
+  const { data: profile } = useQuery((trpc as any).user.getMe.queryOptions());
 
   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   const connectMutation = useMutation(
@@ -137,13 +135,25 @@ export default function ScanScreen() {
 
   const handleBarCodeScanned = useCallback(
     ({ data }: { data: string }) => {
-      if (hasScanned || connectMutation.isPending) return;
+      const now = Date.now();
+
+      if (
+        hasScanned ||
+        connectMutation.isPending ||
+        now - lastScanAtRef.current < SCAN_COOLDOWN_MS
+      ) {
+        return;
+      }
+
+      lastScanAtRef.current = now;
 
       const match = data.match(/^relio:\/\/connect\/(.+)$/);
       if (!match?.[1]) {
-        Alert.alert("Invalid QR", "This doesn't appear to be a Relio QR code.", [
-          { text: "OK", onPress: resetScanner },
-        ]);
+        Alert.alert(
+          "Invalid QR",
+          "This doesn't appear to be a Relio QR code.",
+          [{ text: "OK", onPress: resetScanner }],
+        );
         return;
       }
 
@@ -157,7 +167,9 @@ export default function ScanScreen() {
 
   if (!permission) {
     return (
-      <View style={[styles.container, styles.centered, { paddingTop: insets.top }]}>
+      <View
+        style={[styles.container, styles.centered, { paddingTop: insets.top }]}
+      >
         <ActivityIndicator size="large" color="#6C3CE0" />
       </View>
     );
@@ -166,11 +178,7 @@ export default function ScanScreen() {
   if (!permission.granted) {
     return (
       <View
-        style={[
-          styles.container,
-          styles.centered,
-          { paddingTop: insets.top },
-        ]}
+        style={[styles.container, styles.centered, { paddingTop: insets.top }]}
       >
         <View style={styles.permissionContent}>
           <LinearGradient
@@ -183,7 +191,8 @@ export default function ScanScreen() {
           </LinearGradient>
           <Text style={styles.permissionTitle}>Camera Access</Text>
           <Text style={styles.permissionText}>
-            Allow camera access to scan QR codes and connect with people instantly.
+            Allow camera access to scan QR codes and connect with people
+            instantly.
           </Text>
           <Pressable
             onPress={requestPermission}
@@ -205,7 +214,10 @@ export default function ScanScreen() {
       <View style={[styles.toggleContainer, { top: insets.top + 12 }]}>
         <GlassCard style={styles.toggleCard}>
           <Pressable
-            onPress={() => { setMode("scan"); resetScanner(); }}
+            onPress={() => {
+              setMode("scan");
+              resetScanner();
+            }}
             style={[
               styles.toggleOption,
               mode === "scan" && styles.toggleOptionActive,
@@ -283,7 +295,11 @@ export default function ScanScreen() {
         <View style={styles.myQrContainer}>
           <View style={styles.myQrContent}>
             <Text style={styles.myQrLabel}>
-              {(profile as any)?.displayName ?? (profile as any)?.name ?? session?.user?.name ?? "Your"} QR Code
+              {(profile as any)?.displayName ??
+                (profile as any)?.name ??
+                session?.user?.name ??
+                "Your"}{" "}
+              QR Code
             </Text>
             {userId ? (
               <GlassCard style={styles.qrCard}>

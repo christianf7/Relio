@@ -11,12 +11,12 @@ import {
   Text,
   View,
 } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import QRCode from "react-native-qrcode-svg";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import QRCode from "react-native-qrcode-svg";
 
 import { trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
@@ -86,9 +86,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { data: session } = authClient.useSession();
 
-  const { data: profile, isLoading } = useQuery(
-    trpc.user.getMe.queryOptions(),
-  );
+  const { data: profile, isLoading } = useQuery(trpc.user.getMe.queryOptions());
 
   const fullName =
     profile?.displayName ?? profile?.name ?? session?.user?.name ?? "User";
@@ -118,7 +116,7 @@ export default function ProfileScreen() {
     return profile.socials as {
       githubUrl?: string;
       linkedInUrl?: string;
-      discordUrl?: string;
+      discordUsername?: string;
     };
   }, [profile?.socials]);
 
@@ -363,7 +361,7 @@ export default function ProfileScreen() {
                     />
                   </Pressable>
                 ) : null}
-                {socials?.discordUrl ? (
+                {socials?.discordUsername ? (
                   <Pressable
                     style={({ pressed }) => [
                       styles.socialCard,
