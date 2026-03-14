@@ -254,7 +254,7 @@ export default function EventsScreen() {
     );
   };
 
-  const renderListHeader = () => (
+  const listHeader = (
     <View style={styles.listHeader}>
       <GlassCard style={styles.searchBar}>
         <Ionicons
@@ -343,7 +343,7 @@ export default function EventsScreen() {
           />
         )}
         keyExtractor={(item) => item.id}
-        ListHeaderComponent={renderListHeader}
+        ListHeaderComponent={listHeader}
         ListEmptyComponent={renderEmptyList}
         contentContainerStyle={[
           styles.listContent,
@@ -405,7 +405,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 13,
-    marginHorizontal: 24,
     marginTop: 8,
     marginBottom: 16,
     gap: 10,

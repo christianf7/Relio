@@ -10,11 +10,11 @@ import {
   TextInput,
   View,
 } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import FloatingOrbs from "~/components/FloatingOrbs";
 import { GlassCard } from "~/components/GlassCard";
@@ -110,9 +110,7 @@ function ConnectionCard({
           {name}
         </Text>
       </View>
-      <Text style={styles.connectionTime}>
-        {timeAgo(item.connectedAt)}
-      </Text>
+      <Text style={styles.connectionTime}>{timeAgo(item.connectedAt)}</Text>
     </Pressable>
   );
 }
@@ -268,17 +266,13 @@ export default function PeopleScreen() {
   const pendingRequests = (incomingRequests ?? []) as PendingRequest[];
   const isRefetching = isRefetchingConnections || isRefetchingRequests;
 
-  const renderListHeader = () => (
+  const listHeader = (
     <View>
       {/* Search */}
       <GlassCard style={styles.searchBar}>
-        <Ionicons
-          name="search"
-          size={18}
-          color="rgba(255, 255, 255, 0.35)"
-        />
+        <Ionicons name="search" size={18} color="rgba(255, 255, 255, 0.35)" />
         <TextInput
-          placeholder="Search connections..."
+          placeholder="Search my connections..."
           placeholderTextColor="rgba(255, 255, 255, 0.25)"
           style={styles.searchInput}
           value={search}
@@ -321,7 +315,11 @@ export default function PeopleScreen() {
                 </Text>
               </View>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.7)" />
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color="rgba(255,255,255,0.7)"
+            />
           </View>
         </LinearGradient>
       </Pressable>
@@ -338,9 +336,7 @@ export default function PeopleScreen() {
               request={req}
               isAccepting={acceptingId === req.id}
               isDeclining={decliningId === req.id}
-              onPress={() =>
-                router.push(`/(app)/user/${req.sender.id}` as any)
-              }
+              onPress={() => router.push(`/(app)/user/${req.sender.id}` as any)}
               onAccept={() => {
                 setAcceptingId(req.id);
                 acceptMutation.mutate({ requestId: req.id });
@@ -355,7 +351,7 @@ export default function PeopleScreen() {
       ) : null}
 
       {/* Connections header */}
-      {(filteredConnections.length > 0 || connectionsLoading) ? (
+      {filteredConnections.length > 0 || connectionsLoading ? (
         <Text style={styles.sectionLabel}>
           Connections
           {filteredConnections.length > 0
@@ -410,7 +406,7 @@ export default function PeopleScreen() {
           />
         )}
         keyExtractor={(item) => (item as ConnectionItem).id}
-        ListHeaderComponent={renderListHeader}
+        ListHeaderComponent={listHeader}
         ListEmptyComponent={renderEmpty}
         contentContainerStyle={[
           styles.listContent,

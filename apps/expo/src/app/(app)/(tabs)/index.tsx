@@ -9,6 +9,7 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -123,17 +124,23 @@ export default function HomeScreen() {
   const [activeEventIndex, setActiveEventIndex] = useState(0);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
-  const { data: myUpcomingEvents = [] } = useQuery(
-    trpc.event.getMyUpcomingEvents.queryOptions(),
-  );
+  const {
+    data: myUpcomingEvents = [],
+    refetch: refetchMyUpcomingEvents,
+    isRefetching: isRefetchingMyUpcomingEvents,
+  } = useQuery(trpc.event.getMyUpcomingEvents.queryOptions());
 
-  const { data: suggestedEvents = [] } = useQuery(
-    trpc.event.getSuggestedEvents.queryOptions(),
-  );
+  const {
+    data: suggestedEvents = [],
+    refetch: refetchSuggestedEvents,
+    isRefetching: isRefetchingSuggestedEvents,
+  } = useQuery(trpc.event.getSuggestedEvents.queryOptions());
 
-  const { data: peopleToConnect = [] } = useQuery(
-    trpc.user.getReconnectPeople.queryOptions(),
-  );
+  const {
+    data: peopleToConnect = [],
+    refetch: refetchPeopleToConnect,
+    isRefetching: isRefetchingPeopleToConnect,
+  } = useQuery(trpc.user.getReconnectPeople.queryOptions());
 
   const { data: selectedEvent, isLoading: isLoadingSelected } = useQuery({
     ...trpc.event.getById.queryOptions({ id: selectedEventId! }),
@@ -184,6 +191,14 @@ export default function HomeScreen() {
     [],
   );
 
+  const handleRefresh = useCallback(() => {
+    return Promise.all([
+      refetchMyUpcomingEvents(),
+      refetchSuggestedEvents(),
+      refetchPeopleToConnect(),
+    ]);
+  }, [refetchMyUpcomingEvents, refetchPeopleToConnect, refetchSuggestedEvents]);
+
   const formatFullDate = (date: Date | string) => {
     const d = typeof date === "string" ? new Date(date) : date;
     return d.toLocaleDateString("en-AU", {
@@ -203,6 +218,10 @@ export default function HomeScreen() {
   };
 
   const actionPending = joinMutation.isPending || leaveMutation.isPending;
+  const isRefetchingHome =
+    isRefetchingMyUpcomingEvents ||
+    isRefetchingSuggestedEvents ||
+    isRefetchingPeopleToConnect;
 
   return (
     <View style={styles.container}>
@@ -220,6 +239,13 @@ export default function HomeScreen() {
           paddingBottom: 24,
         }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetchingHome}
+            onRefresh={handleRefresh}
+            tintColor="#6C3CE0"
+          />
+        }
       >
         <View style={styles.header}>
           <View>
@@ -322,7 +348,7 @@ export default function HomeScreen() {
         )}
 
         <View style={styles.section}>
-          <SectionHeader title="Connect Back With These People" />
+          <SectionHeader title="People you recently missed" />
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
