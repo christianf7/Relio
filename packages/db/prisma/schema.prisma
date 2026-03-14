@@ -19,9 +19,10 @@ model User {
   bio           String?
   socials       Json?
   image         String?
-  enrolledUnits Json?    @default("[]") @map("enrolled_units")
-  createdAt     DateTime @map("created_at")
-  updatedAt     DateTime @map("updated_at")
+  enrolledUnits       Json?    @default("[]") @map("enrolled_units")
+  onboardingCompleted Boolean  @default(false) @map("onboarding_completed")
+  createdAt           DateTime @map("created_at")
+  updatedAt           DateTime @map("updated_at")
 
   sessions Session[]
   accounts Account[]

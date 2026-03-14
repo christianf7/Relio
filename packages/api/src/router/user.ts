@@ -180,6 +180,14 @@ export const userRouter = {
       };
     }),
 
+  completeOnboarding: protectedProcedure.mutation(async ({ ctx }) => {
+    await ctx.db.user.update({
+      where: { id: ctx.session.user.id },
+      data: { onboardingCompleted: true },
+    });
+    return { success: true };
+  }),
+
   getReconnectPeople: protectedProcedure.query(async ({ ctx }) => {
     const me = await ctx.db.user.findUnique({
       where: { id: ctx.session.user.id },

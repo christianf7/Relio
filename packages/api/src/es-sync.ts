@@ -134,7 +134,15 @@ export async function syncUserConnectionsToEs(
           ...user.connectedBy.map((c: { id: string }) => c.id),
         ]),
       ];
-      await updateUserConnections(es, userId, allConnectionIds);
+      try {
+        await updateUserConnections(es, userId, allConnectionIds);
+      } catch (err: any) {
+        if (err?.meta?.statusCode === 404) {
+          await syncUserToEs(es, prisma, userId);
+        } else {
+          throw err;
+        }
+      }
     }
   } catch (err) {
     logError(`syncUserConnections(${userId})`, err);
@@ -156,12 +164,20 @@ export async function syncUserEventsToEs(
       },
     });
     if (user) {
-      await updateUserEvents(
-        es,
-        userId,
-        user.upcomingEvents.map((e: { id: string }) => e.id),
-        user.organisedEvents.map((e: { id: string }) => e.id),
-      );
+      try {
+        await updateUserEvents(
+          es,
+          userId,
+          user.upcomingEvents.map((e: { id: string }) => e.id),
+          user.organisedEvents.map((e: { id: string }) => e.id),
+        );
+      } catch (err: any) {
+        if (err?.meta?.statusCode === 404) {
+          await syncUserToEs(es, prisma, userId);
+        } else {
+          throw err;
+        }
+      }
     }
   } catch (err) {
     logError(`syncUserEvents(${userId})`, err);

@@ -16,6 +16,7 @@
     "@acme/api": "workspace:*",
     "@acme/auth": "workspace:*",
     "@acme/db": "workspace:*",
+    "@acme/es": "workspace:*",
     "@acme/ui": "workspace:*",
     "@acme/validators": "workspace:*",
     "@aws-sdk/client-s3": "^3.1008.0",

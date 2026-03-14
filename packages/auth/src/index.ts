@@ -16,6 +16,7 @@ export function initAuth<
   discordClientId: string;
   discordClientSecret: string;
   extraPlugins?: TExtraPlugins;
+  onUserCreated?: (user: { id: string }) => void | Promise<void>;
 }) {
   const config = {
     database: prismaAdapter(db, {
@@ -41,6 +42,21 @@ export function initAuth<
     onAPIError: {
       onError(error, ctx) {
         console.error("BETTER AUTH API ERROR", error, ctx);
+      },
+    },
+    databaseHooks: {
+      user: {
+        create: {
+          after: options.onUserCreated
+            ? async (user: { id: string }) => {
+                try {
+                  await options.onUserCreated!(user);
+                } catch (err) {
+                  console.error("[Auth] onUserCreated hook failed:", err);
+                }
+              }
+            : undefined,
+        },
       },
     },
   } satisfies BetterAuthOptions;

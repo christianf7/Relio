@@ -133,16 +133,11 @@ export async function updateUserConnections(
   userId: string,
   connectionIds: string[],
 ): Promise<void> {
-  try {
-    await client.update({
-      index: USERS_INDEX,
-      id: userId,
-      doc: { connectionIds },
-    });
-  } catch (err: any) {
-    if (err?.meta?.statusCode === 404) return;
-    throw err;
-  }
+  await client.update({
+    index: USERS_INDEX,
+    id: userId,
+    doc: { connectionIds },
+  });
 }
 
 export async function updateUserEvents(
@@ -151,14 +146,9 @@ export async function updateUserEvents(
   upcomingEventIds: string[],
   organisedEventIds: string[],
 ): Promise<void> {
-  try {
-    await client.update({
-      index: USERS_INDEX,
-      id: userId,
-      doc: { upcomingEventIds, organisedEventIds },
-    });
-  } catch (err: any) {
-    if (err?.meta?.statusCode === 404) return;
-    throw err;
-  }
+  await client.update({
+    index: USERS_INDEX,
+    id: userId,
+    doc: { upcomingEventIds, organisedEventIds },
+  });
 }
