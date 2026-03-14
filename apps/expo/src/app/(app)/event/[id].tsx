@@ -12,11 +12,11 @@ import {
   Text,
   View,
 } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
@@ -147,10 +147,7 @@ export default function EventDetailScreen() {
                 router.back();
               },
               onError: (err) =>
-                Alert.alert(
-                  "Error",
-                  err.message || "Failed to delete event.",
-                ),
+                Alert.alert("Error", err.message || "Failed to delete event."),
             }),
         },
       ],
@@ -275,9 +272,7 @@ export default function EventDetailScreen() {
                 </View>
                 <View>
                   <Text style={styles.metaLabel}>Date</Text>
-                  <Text style={styles.metaValue}>
-                    {formatDate(event.date)}
-                  </Text>
+                  <Text style={styles.metaValue}>{formatDate(event.date)}</Text>
                 </View>
               </View>
               <View style={styles.metaDivider} />
@@ -287,9 +282,7 @@ export default function EventDetailScreen() {
                 </View>
                 <View>
                   <Text style={styles.metaLabel}>Time</Text>
-                  <Text style={styles.metaValue}>
-                    {formatTime(event.date)}
-                  </Text>
+                  <Text style={styles.metaValue}>{formatTime(event.date)}</Text>
                 </View>
               </View>
               <View style={styles.metaDivider} />
@@ -326,9 +319,7 @@ export default function EventDetailScreen() {
                   }}
                 >
                   <LinearGradient
-                    colors={
-                      AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length]!
-                    }
+                    colors={AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length]!}
                     style={styles.organiserAvatar}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
@@ -348,9 +339,7 @@ export default function EventDetailScreen() {
               style={styles.statItem}
               onPress={() => setShowAttendees(true)}
             >
-              <Text style={styles.statValue}>
-                {event.participants.length}
-              </Text>
+              <Text style={styles.statValue}>{event.participants.length}</Text>
               <View style={styles.statLabelRow}>
                 <Text style={styles.statLabel}>Attending</Text>
                 <Ionicons
@@ -362,9 +351,7 @@ export default function EventDetailScreen() {
             </Pressable>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>
-                {event.organisers.length}
-              </Text>
+              <Text style={styles.statValue}>{event.organisers.length}</Text>
               <Text style={styles.statLabel}>
                 {event.organisers.length === 1 ? "Organiser" : "Organisers"}
               </Text>
@@ -484,16 +471,23 @@ export default function EventDetailScreen() {
                   }
                 }}
               >
-                <LinearGradient
-                  colors={AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length]!}
-                  style={styles.attendeeAvatar}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <Text style={styles.attendeeInitials}>
-                    {getInitials(p.name)}
-                  </Text>
-                </LinearGradient>
+                {p.image ? (
+                  <Image
+                    source={{ uri: p.image }}
+                    style={styles.attendeeAvatar}
+                  />
+                ) : (
+                  <LinearGradient
+                    colors={AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length]!}
+                    style={styles.attendeeAvatar}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Text style={styles.attendeeInitials}>
+                      {getInitials(p.name)}
+                    </Text>
+                  </LinearGradient>
+                )}
                 <Text style={styles.attendeeName}>{p.name}</Text>
                 {p.id === userId && (
                   <View style={styles.youBadge}>
@@ -534,7 +528,8 @@ export default function EventDetailScreen() {
             </View>
             <Text style={styles.confirmTitle}>Get Your Ticket First</Text>
             <Text style={styles.confirmMessage}>
-              Make sure you get a ticket from the event organiser before joining.
+              Make sure you get a ticket from the event organiser before
+              joining.
             </Text>
             <Pressable
               style={styles.confirmTicketButton}
@@ -565,9 +560,7 @@ export default function EventDetailScreen() {
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                 >
-                  <Text style={styles.confirmJoinText}>
-                    I Have My Ticket
-                  </Text>
+                  <Text style={styles.confirmJoinText}>I Have My Ticket</Text>
                 </LinearGradient>
               </Pressable>
             </View>

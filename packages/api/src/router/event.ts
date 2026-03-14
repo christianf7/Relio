@@ -94,7 +94,9 @@ export const eventRouter = {
       const orConditions = [];
       if (unitCodes.length > 0) {
         orConditions.push({
-          enrolledUnits: { array_contains: unitCodes.map((code) => ({ code })) },
+          enrolledUnits: {
+            array_contains: unitCodes.map((code) => ({ code })),
+          },
         });
       }
       if (sharedEventIds.length > 0) {
@@ -242,10 +244,10 @@ export const eventRouter = {
         where: { id: input.id },
         include: {
           organisers: {
-            select: { id: true, name: true, avatarUrl: true },
+            select: { id: true, name: true, avatarUrl: true, image: true },
           },
           participants: {
-            select: { id: true, name: true, avatarUrl: true },
+            select: { id: true, name: true, avatarUrl: true, image: true },
           },
         },
       });
