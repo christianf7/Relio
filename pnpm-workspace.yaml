@@ -28,8 +28,8 @@ catalogs:
   react19:
     '@types/react': ~19.1.0
     '@types/react-dom': ~19.1.0
-    react: 19.1.4
-    react-dom: 19.1.4
+    react: 19.1.0
+    react-dom: 19.1.0
 
 linkWorkspacePackages: true
 
@@ -49,6 +49,16 @@ overrides:
   '@types/minimatch': 5.1.2
   lightningcss: 1.30.1
   vite: 7.1.12
+  react: 19.1.0
+  react-dom: 19.1.0
+  react-native: 0.81.5
+  expo: ~54.0.33
+  expo-constants: ~18.0.13
+  expo-linking: ~8.0.11
+  expo-web-browser: ~15.0.10
+  expo-font: ~14.0.11
+  expo-modules-core: ~3.0.29
+  '@expo/vector-icons': ^15.0.3
 
 publicHoistPattern:
   - '@ianvs/prettier-plugin-sort-imports'
