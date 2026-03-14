@@ -1,11 +1,19 @@
 {
-  "name": "@acme/api",
+  "name": "@acme/es",
   "private": true,
   "type": "module",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./src/index.ts"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "default": "./src/client.ts"
+    },
+    "./sync": {
+      "types": "./dist/sync.d.ts",
+      "default": "./src/sync.ts"
     }
   },
   "license": "MIT",
@@ -15,23 +23,24 @@
     "dev": "tsc",
     "format": "prettier --check . --ignore-path ../../.gitignore",
     "lint": "eslint --flag unstable_native_nodejs_ts_config",
-    "typecheck": "tsc --noEmit --emitDeclarationOnly false"
+    "seed": "pnpm with-env tsx src/seed.ts",
+    "ensure-indices": "pnpm with-env tsx src/ensure-indices.ts",
+    "typecheck": "tsc --noEmit --emitDeclarationOnly false",
+    "with-env": "dotenv -e ../../.env --"
   },
   "dependencies": {
-    "@acme/auth": "workspace:*",
-    "@acme/db": "workspace:*",
-    "@acme/es": "workspace:*",
-    "@acme/validators": "workspace:*",
-    "@trpc/server": "catalog:",
-    "superjson": "2.2.3",
-    "zod": "catalog:"
+    "@elastic/elasticsearch": "^8.19.1",
+    "@prisma/client": "^6.19.2",
+    "@types/node": "catalog:"
   },
   "devDependencies": {
     "@acme/eslint-config": "workspace:*",
     "@acme/prettier-config": "workspace:*",
     "@acme/tsconfig": "workspace:*",
+    "dotenv-cli": "^10.0.0",
     "eslint": "catalog:",
     "prettier": "catalog:",
+    "tsx": "^4.21.0",
     "typescript": "catalog:"
   },
   "prettier": "@acme/prettier-config"

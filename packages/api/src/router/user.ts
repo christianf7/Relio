@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
 
 import { protectedProcedure } from "../trpc";
+import { syncUserToEs } from "../es-sync";
 
 export const userRouter = {
   getMe: protectedProcedure.query(async ({ ctx }) => {
@@ -76,13 +77,17 @@ export const userRouter = {
           .optional(),
       }),
     )
-    .mutation(({ ctx, input }) => {
-      return ctx.db.user.update({
+    .mutation(async ({ ctx, input }) => {
+      const result = await ctx.db.user.update({
         where: {
           id: ctx.session.user.id,
         },
         data: input,
       });
+
+      void syncUserToEs(ctx.es, ctx.db, ctx.session.user.id);
+
+      return result;
     }),
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))

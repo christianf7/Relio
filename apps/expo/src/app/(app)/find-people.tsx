@@ -217,7 +217,7 @@ function MatchOverlay({
         <Animated.View style={[styles.matchTextContainer, textStyle]}>
           <Text style={styles.matchTitle}>It's a Match!</Text>
           <Text style={styles.matchSubtitle}>
-            You and {name} are now connected
+            You and {name} both liked each other
           </Text>
           {matchedUser.nextSharedEvent && (
             <View style={styles.matchEventBadge}>
@@ -459,10 +459,10 @@ function SwipeCard({
     if (!isTop) {
       return {
         transform: [
-          { scale: 0.95 },
-          { translateY: 12 },
+          { scale: 0.93 },
+          { translateY: 14 },
         ],
-        opacity: 0.5,
+        zIndex: 0,
       };
     }
     return {
@@ -471,6 +471,7 @@ function SwipeCard({
         { translateY: translateY.value },
         { rotate: `${cardRotate.value}deg` },
       ],
+      zIndex: 1,
     };
   });
 
@@ -589,6 +590,7 @@ export default function FindPeopleScreen() {
   const [swipeCount, setSwipeCount] = useState(0);
   const [sessionMatches, setSessionMatches] = useState<MatchedInfo[]>([]);
   const lastSwipedRef = useRef<string | null>(null);
+  const swipingRef = useRef(false);
 
   const { data, isLoading, refetch } = useQuery(
     trpc.discover.getDiscoverFeed.queryOptions({ limit: 20 }),
@@ -639,9 +641,11 @@ export default function FindPeopleScreen() {
 
   const handleSwipe = useCallback(
     (direction: "LEFT" | "RIGHT") => {
+      if (swipingRef.current) return;
       const profile = profiles[currentIndex];
       if (!profile) return;
 
+      swipingRef.current = true;
       lastSwipedRef.current = profile.id;
       setSwipeCount((prev) => prev + 1);
 
@@ -652,7 +656,8 @@ export default function FindPeopleScreen() {
 
       setTimeout(() => {
         setCurrentIndex((prev) => prev + 1);
-      }, 350);
+        swipingRef.current = false;
+      }, 300);
     },
     [currentIndex, profiles, swipeMutation],
   );

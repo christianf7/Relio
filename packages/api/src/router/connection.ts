@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
 
 import { protectedProcedure } from "../trpc";
+import { syncUserConnectionsToEs } from "../es-sync";
 
 export const connectionRouter = {
   requestConnection: protectedProcedure
@@ -137,12 +138,17 @@ export const connectionRouter = {
         data: { status: "ACCEPTED" },
       });
 
-      return ctx.db.user.update({
+      const result = await ctx.db.user.update({
         where: { id: request.receiverId },
         data: {
           connections: { connect: { id: request.senderId } },
         },
       });
+
+      void syncUserConnectionsToEs(ctx.es, ctx.db, request.receiverId);
+      void syncUserConnectionsToEs(ctx.es, ctx.db, request.senderId);
+
+      return result;
     }),
 
   declineConnection: protectedProcedure
@@ -352,18 +358,26 @@ export const connectionRouter = {
         }
       });
 
+      void syncUserConnectionsToEs(ctx.es, ctx.db, ctx.session.user.id);
+      void syncUserConnectionsToEs(ctx.es, ctx.db, input.userId);
+
       return { alreadyConnected: false, user: targetUser };
     }),
 
   removeConnection: protectedProcedure
     .input(z.object({ userId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.user.update({
+      const result = await ctx.db.user.update({
         where: { id: ctx.session.user.id },
         data: {
           connections: { disconnect: { id: input.userId } },
           connectedBy: { disconnect: { id: input.userId } },
         },
       });
+
+      void syncUserConnectionsToEs(ctx.es, ctx.db, ctx.session.user.id);
+      void syncUserConnectionsToEs(ctx.es, ctx.db, input.userId);
+
+      return result;
     }),
 } satisfies TRPCRouterRecord;

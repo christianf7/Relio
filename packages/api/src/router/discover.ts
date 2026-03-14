@@ -1,73 +1,12 @@
 import type { TRPCRouterRecord } from "@trpc/server";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
+import { USERS_INDEX } from "@acme/es";
 
 import { protectedProcedure } from "../trpc";
+import { syncUserConnectionsToEs } from "../es-sync";
 
 type EnrolledUnit = { code: string; university: string };
-
-function computeScore(
-  candidate: {
-    id: string;
-    enrolledUnits: unknown;
-    upcomingEventIds: string[];
-    organisedEventIds: string[];
-  },
-  currentUser: {
-    enrolledUnits: EnrolledUnit[];
-    upcomingEventIds: string[];
-    organisedEventIds: string[];
-    connectionIds: string[];
-  },
-): { score: number; reasons: string[] } {
-  const reasons: string[] = [];
-  let score = 0;
-
-  const candidateUnits: EnrolledUnit[] = Array.isArray(candidate.enrolledUnits)
-    ? (candidate.enrolledUnits as EnrolledUnit[])
-    : [];
-
-  const myUnitCodes = new Set(currentUser.enrolledUnits.map((u) => u.code));
-  const sharedUnits = candidateUnits.filter((u) => myUnitCodes.has(u.code));
-  if (sharedUnits.length > 0) {
-    score += sharedUnits.length * 25;
-    reasons.push(
-      sharedUnits.length === 1
-        ? `Shares ${sharedUnits[0]!.code}`
-        : `${sharedUnits.length} shared courses`,
-    );
-  }
-
-  const myUnis = new Set(currentUser.enrolledUnits.map((u) => u.university));
-  const candidateUnis = new Set(candidateUnits.map((u) => u.university));
-  const sharedUnis = [...candidateUnis].filter((u) => myUnis.has(u));
-  if (sharedUnis.length > 0 && sharedUnits.length === 0) {
-    score += 10;
-    reasons.push(`Same university`);
-  }
-
-  const myEventIds = new Set([
-    ...currentUser.upcomingEventIds,
-    ...currentUser.organisedEventIds,
-  ]);
-  const candidateEventIds = new Set([
-    ...candidate.upcomingEventIds,
-    ...candidate.organisedEventIds,
-  ]);
-  const sharedEvents = [...candidateEventIds].filter((id) =>
-    myEventIds.has(id),
-  );
-  if (sharedEvents.length > 0) {
-    score += sharedEvents.length * 30;
-    reasons.push(
-      sharedEvents.length === 1
-        ? `Attending same event`
-        : `${sharedEvents.length} shared events`,
-    );
-  }
-
-  return { score, reasons };
-}
 
 export const discoverRouter = {
   getDiscoverFeed: protectedProcedure
@@ -83,7 +22,7 @@ export const discoverRouter = {
       const limit = input?.limit ?? 20;
       const userId = ctx.session.user.id;
 
-      const [currentUser, swipedUserIds] = await Promise.all([
+      const [currentUser, swipedUserIds, rightSwipedOnMe] = await Promise.all([
         ctx.db.user.findUnique({
           where: { id: userId },
           select: {
@@ -97,6 +36,10 @@ export const discoverRouter = {
         ctx.db.swipe.findMany({
           where: { swiperId: userId },
           select: { swipedId: true },
+        }),
+        ctx.db.swipe.findMany({
+          where: { swipedId: userId, direction: "RIGHT", matched: false },
+          select: { swiperId: true },
         }),
       ]);
 
@@ -124,36 +67,108 @@ export const discoverRouter = {
       const myUnis = [...new Set(myUnits.map((u) => u.university))];
       const allMyEventIds = [...myUpcomingEventIds, ...myOrganisedEventIds];
 
-      const orConditions: any[] = [];
+      const interestedInMeIds = rightSwipedOnMe.map((s) => s.swiperId);
+
+      if (!ctx.es) {
+        return fallbackDiscoverFeed(ctx.db, userId, currentUser, excludeIds, myUnits, myUnitCodes, myUnis, allMyEventIds, myUpcomingEventIds, myOrganisedEventIds, myConnectionIds, interestedInMeIds, limit);
+      }
+
+      const functions: any[] = [];
+
+      if (interestedInMeIds.length > 0) {
+        functions.push({
+          filter: { terms: { id: interestedInMeIds } },
+          weight: 200,
+        });
+      }
 
       if (myUnitCodes.length > 0) {
-        for (const code of myUnitCodes) {
-          orConditions.push({
-            enrolledUnits: { array_contains: [{ code }] },
-          });
-        }
+        functions.push({
+          filter: { terms: { unitCodes: myUnitCodes } },
+          script_score: {
+            script: {
+              source:
+                "int count = 0; for (def c : params.codes) { if (doc['unitCodes'].size() > 0 && doc['unitCodes'].contains(c)) count++; } return count * 25;",
+              params: { codes: myUnitCodes },
+            },
+          },
+        });
       }
+
       if (myUnis.length > 0) {
-        for (const university of myUnis) {
-          orConditions.push({
-            enrolledUnits: { array_contains: [{ university }] },
-          });
-        }
+        functions.push({
+          filter: {
+            bool: {
+              must: [{ terms: { unitUniversities: myUnis } }],
+              ...(myUnitCodes.length > 0
+                ? { must_not: [{ terms: { unitCodes: myUnitCodes } }] }
+                : {}),
+            },
+          },
+          weight: 10,
+        });
       }
+
       if (allMyEventIds.length > 0) {
-        orConditions.push({
-          upcomingEvents: { some: { id: { in: allMyEventIds } } },
+        functions.push({
+          filter: {
+            bool: {
+              should: [
+                { terms: { upcomingEventIds: allMyEventIds } },
+                { terms: { organisedEventIds: allMyEventIds } },
+              ],
+              minimum_should_match: 1,
+            },
+          },
+          script_score: {
+            script: {
+              source:
+                "int count = 0; for (def id : params.ids) { if (doc['upcomingEventIds'].size() > 0 && doc['upcomingEventIds'].contains(id)) count++; if (doc['organisedEventIds'].size() > 0 && doc['organisedEventIds'].contains(id)) count++; } return count * 30;",
+              params: { ids: allMyEventIds },
+            },
+          },
         });
-        orConditions.push({
-          organisedEvents: { some: { id: { in: allMyEventIds } } },
-        });
+      }
+
+      functions.push({
+        random_score: { seed: Date.now(), field: "id" },
+        weight: 0.1,
+      });
+
+      const esResult = await ctx.es.search({
+        index: USERS_INDEX,
+        body: {
+          query: {
+            function_score: {
+              query: {
+                bool: {
+                  must_not: [{ terms: { id: excludeIds } }],
+                },
+              },
+              functions,
+              score_mode: "sum",
+              boost_mode: "replace",
+              min_score: 0.1,
+            },
+          },
+          size: limit,
+          _source: ["id", "unitCodes", "unitUniversities", "upcomingEventIds", "organisedEventIds"],
+        },
+      });
+
+      const hits = esResult.hits.hits;
+      if (hits.length === 0) {
+        return { profiles: [], remaining: 0 };
+      }
+
+      const candidateIds = hits.map((h: any) => h._id as string);
+      const scoreMap = new Map<string, number>();
+      for (const hit of hits) {
+        scoreMap.set(hit._id!, hit._score ?? 0);
       }
 
       const candidates = await ctx.db.user.findMany({
-        where: {
-          id: { notIn: excludeIds },
-          ...(orConditions.length > 0 ? { OR: orConditions } : {}),
-        },
+        where: { id: { in: candidateIds } },
         select: {
           id: true,
           name: true,
@@ -164,67 +179,70 @@ export const discoverRouter = {
           upcomingEvents: { select: { id: true, title: true, date: true } },
           organisedEvents: { select: { id: true, title: true, date: true } },
         },
-        take: 100,
       });
 
-      const scored = candidates.map((candidate) => {
-        const { score, reasons } = computeScore(
-          {
+      const myUnitCodeSet = new Set(myUnitCodes);
+      const myUniSet = new Set(myUnis);
+      const myEventIdSet = new Set(allMyEventIds);
+
+      const profiles = candidates
+        .map((candidate) => {
+          const candidateUnits: EnrolledUnit[] = Array.isArray(candidate.enrolledUnits)
+            ? (candidate.enrolledUnits as EnrolledUnit[])
+            : [];
+
+          const reasons: string[] = [];
+          const sharedUnits = candidateUnits.filter((u) => myUnitCodeSet.has(u.code));
+          if (sharedUnits.length > 0) {
+            reasons.push(
+              sharedUnits.length === 1
+                ? `Shares ${sharedUnits[0]!.code}`
+                : `${sharedUnits.length} shared courses`,
+            );
+          } else {
+            const sharedUnis = candidateUnits.filter((u) => myUniSet.has(u.university));
+            if (sharedUnis.length > 0) reasons.push("Same university");
+          }
+
+          const allEvents = [...candidate.upcomingEvents, ...candidate.organisedEvents];
+          const sharedEvents = allEvents.filter((e) => myEventIdSet.has(e.id));
+          if (sharedEvents.length > 0) {
+            reasons.push(
+              sharedEvents.length === 1
+                ? "Attending same event"
+                : `${sharedEvents.length} shared events`,
+            );
+          }
+
+          const nextSharedEvent = sharedEvents
+            .filter((e) => new Date(e.date) > new Date())
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+
+          return {
             id: candidate.id,
-            enrolledUnits: candidate.enrolledUnits,
-            upcomingEventIds: candidate.upcomingEvents.map((e) => e.id),
-            organisedEventIds: candidate.organisedEvents.map((e) => e.id),
-          },
-          {
-            enrolledUnits: myUnits,
-            upcomingEventIds: myUpcomingEventIds,
-            organisedEventIds: myOrganisedEventIds,
-            connectionIds: [...myConnectionIds],
-          },
-        );
+            name: candidate.name,
+            displayName: candidate.displayName,
+            image: candidate.image,
+            bio: candidate.bio,
+            university: candidateUnits[0]?.university ?? null,
+            courses: candidateUnits.map((u) => u.code),
+            sharedEventCount: sharedEvents.length,
+            nextSharedEvent: nextSharedEvent
+              ? { id: nextSharedEvent.id, title: nextSharedEvent.title, date: nextSharedEvent.date }
+              : null,
+            score: scoreMap.get(candidate.id) ?? 0,
+            reasons,
+          };
+        })
+        .sort((a, b) => b.score - a.score);
 
-        const candidateUnits: EnrolledUnit[] = Array.isArray(
-          candidate.enrolledUnits,
-        )
-          ? (candidate.enrolledUnits as EnrolledUnit[])
-          : [];
-
-        const allEvents = [...candidate.upcomingEvents, ...candidate.organisedEvents];
-        const myAllEventSet = new Set(allMyEventIds);
-        const sharedEvents = allEvents.filter((e) => myAllEventSet.has(e.id));
-        const nextSharedEvent = sharedEvents
-          .filter((e) => new Date(e.date) > new Date())
-          .sort(
-            (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-          )[0];
-
-        return {
-          id: candidate.id,
-          name: candidate.name,
-          displayName: candidate.displayName,
-          image: candidate.image,
-          bio: candidate.bio,
-          university: candidateUnits[0]?.university ?? null,
-          courses: candidateUnits.map((u) => u.code),
-          sharedEventCount: sharedEvents.length,
-          nextSharedEvent: nextSharedEvent
-            ? { id: nextSharedEvent.id, title: nextSharedEvent.title, date: nextSharedEvent.date }
-            : null,
-          score,
-          reasons,
-        };
-      });
-
-      scored.sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        return Math.random() - 0.5;
-      });
-
-      const page = scored.slice(0, limit);
+      const totalHits = typeof esResult.hits.total === "number"
+        ? esResult.hits.total
+        : esResult.hits.total?.value ?? 0;
 
       return {
-        profiles: page,
-        remaining: scored.length - page.length,
+        profiles,
+        remaining: Math.max(0, totalHits - profiles.length),
       };
     }),
 
@@ -261,8 +279,6 @@ export const discoverRouter = {
         });
       }
 
-      let matched = false;
-
       if (input.direction === "RIGHT") {
         const reciprocal = await ctx.db.swipe.findUnique({
           where: {
@@ -274,8 +290,6 @@ export const discoverRouter = {
         });
 
         if (reciprocal?.direction === "RIGHT") {
-          matched = true;
-
           await ctx.db.$transaction([
             ctx.db.swipe.create({
               data: {
@@ -288,17 +302,6 @@ export const discoverRouter = {
             ctx.db.swipe.update({
               where: { id: reciprocal.id },
               data: { matched: true },
-            }),
-            ctx.db.user.update({
-              where: { id: userId },
-              data: { connections: { connect: { id: input.targetUserId } } },
-            }),
-            ctx.db.connectionRequest.create({
-              data: {
-                senderId: userId,
-                receiverId: input.targetUserId,
-                status: "ACCEPTED",
-              },
             }),
           ]);
 
@@ -391,4 +394,225 @@ export const discoverRouter = {
 
     return { undoneUserId: lastSwipe.swipedId };
   }),
+
+  connectFromMatch: protectedProcedure
+    .input(z.object({ matchedUserId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      if (input.matchedUserId === userId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot connect with yourself" });
+      }
+
+      const mySwipe = await ctx.db.swipe.findUnique({
+        where: { swiperId_swipedId: { swiperId: userId, swipedId: input.matchedUserId } },
+      });
+
+      if (!mySwipe?.matched) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "You haven't matched with this user" });
+      }
+
+      const alreadyConnected = await ctx.db.user.findFirst({
+        where: {
+          id: userId,
+          OR: [
+            { connections: { some: { id: input.matchedUserId } } },
+            { connectedBy: { some: { id: input.matchedUserId } } },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (alreadyConnected) {
+        return { alreadyConnected: true };
+      }
+
+      await ctx.db.$transaction(async (tx) => {
+        await tx.user.update({
+          where: { id: userId },
+          data: { connections: { connect: { id: input.matchedUserId } } },
+        });
+
+        const existingReq = await tx.connectionRequest.findFirst({
+          where: {
+            OR: [
+              { senderId: userId, receiverId: input.matchedUserId },
+              { senderId: input.matchedUserId, receiverId: userId },
+            ],
+          },
+          select: { id: true },
+        });
+
+        if (existingReq) {
+          await tx.connectionRequest.update({
+            where: { id: existingReq.id },
+            data: { status: "ACCEPTED" },
+          });
+        } else {
+          await tx.connectionRequest.create({
+            data: {
+              senderId: userId,
+              receiverId: input.matchedUserId,
+              status: "ACCEPTED",
+            },
+          });
+        }
+      });
+
+      void syncUserConnectionsToEs(ctx.es, ctx.db, userId);
+      void syncUserConnectionsToEs(ctx.es, ctx.db, input.matchedUserId);
+
+      return { alreadyConnected: false };
+    }),
+
+  removeMatch: protectedProcedure
+    .input(z.object({ matchedUserId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      await ctx.db.swipe.updateMany({
+        where: {
+          OR: [
+            { swiperId: userId, swipedId: input.matchedUserId, matched: true },
+            { swiperId: input.matchedUserId, swipedId: userId, matched: true },
+          ],
+        },
+        data: { matched: false },
+      });
+
+      return { success: true };
+    }),
 } satisfies TRPCRouterRecord;
+
+/**
+ * Fallback when ES is not configured -- preserves the original Prisma-based logic
+ * so the app still works without Elasticsearch.
+ */
+async function fallbackDiscoverFeed(
+  db: any,
+  userId: string,
+  currentUser: any,
+  excludeIds: string[],
+  myUnits: EnrolledUnit[],
+  myUnitCodes: string[],
+  myUnis: string[],
+  allMyEventIds: string[],
+  myUpcomingEventIds: string[],
+  myOrganisedEventIds: string[],
+  myConnectionIds: Set<string>,
+  interestedInMeIds: string[],
+  limit: number,
+) {
+  const interestedSet = new Set(interestedInMeIds);
+  const orConditions: any[] = [];
+
+  if (myUnitCodes.length > 0) {
+    for (const code of myUnitCodes) {
+      orConditions.push({ enrolledUnits: { array_contains: [{ code }] } });
+    }
+  }
+  if (myUnis.length > 0) {
+    for (const university of myUnis) {
+      orConditions.push({ enrolledUnits: { array_contains: [{ university }] } });
+    }
+  }
+  if (allMyEventIds.length > 0) {
+    orConditions.push({ upcomingEvents: { some: { id: { in: allMyEventIds } } } });
+    orConditions.push({ organisedEvents: { some: { id: { in: allMyEventIds } } } });
+  }
+
+  const notExcludedInterestedIds = interestedInMeIds.filter((id) => !excludeIds.includes(id));
+  if (notExcludedInterestedIds.length > 0) {
+    orConditions.push({ id: { in: notExcludedInterestedIds } });
+  }
+
+  const candidates = await db.user.findMany({
+    where: {
+      id: { notIn: excludeIds },
+      ...(orConditions.length > 0 ? { OR: orConditions } : {}),
+    },
+    select: {
+      id: true,
+      name: true,
+      displayName: true,
+      image: true,
+      bio: true,
+      enrolledUnits: true,
+      upcomingEvents: { select: { id: true, title: true, date: true } },
+      organisedEvents: { select: { id: true, title: true, date: true } },
+    },
+    take: 100,
+  });
+
+  const myUnitCodeSet = new Set(myUnitCodes);
+  const myUniSet = new Set(myUnis);
+  const myEventIdSet = new Set(allMyEventIds);
+
+  const scored = candidates.map((candidate: any) => {
+    const candidateUnits: EnrolledUnit[] = Array.isArray(candidate.enrolledUnits)
+      ? (candidate.enrolledUnits as EnrolledUnit[])
+      : [];
+
+    let score = 0;
+    const reasons: string[] = [];
+
+    if (interestedSet.has(candidate.id)) {
+      score += 200;
+    }
+
+    const sharedUnits = candidateUnits.filter((u) => myUnitCodeSet.has(u.code));
+    if (sharedUnits.length > 0) {
+      score += sharedUnits.length * 25;
+      reasons.push(
+        sharedUnits.length === 1
+          ? `Shares ${sharedUnits[0]!.code}`
+          : `${sharedUnits.length} shared courses`,
+      );
+    }
+
+    const sharedUnis = candidateUnits.filter((u) => myUniSet.has(u.university));
+    if (sharedUnis.length > 0 && sharedUnits.length === 0) {
+      score += 10;
+      reasons.push("Same university");
+    }
+
+    const allEvents = [...candidate.upcomingEvents, ...candidate.organisedEvents];
+    const sharedEvents = allEvents.filter((e: any) => myEventIdSet.has(e.id));
+    if (sharedEvents.length > 0) {
+      score += sharedEvents.length * 30;
+      reasons.push(
+        sharedEvents.length === 1
+          ? "Attending same event"
+          : `${sharedEvents.length} shared events`,
+      );
+    }
+
+    const nextSharedEvent = sharedEvents
+      .filter((e: any) => new Date(e.date) > new Date())
+      .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+
+    return {
+      id: candidate.id,
+      name: candidate.name,
+      displayName: candidate.displayName,
+      image: candidate.image,
+      bio: candidate.bio,
+      university: candidateUnits[0]?.university ?? null,
+      courses: candidateUnits.map((u: EnrolledUnit) => u.code),
+      sharedEventCount: sharedEvents.length,
+      nextSharedEvent: nextSharedEvent
+        ? { id: nextSharedEvent.id, title: nextSharedEvent.title, date: nextSharedEvent.date }
+        : null,
+      score,
+      reasons,
+    };
+  });
+
+  scored.sort((a: any, b: any) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return Math.random() - 0.5;
+  });
+
+  const page = scored.slice(0, limit);
+  return { profiles: page, remaining: scored.length - page.length };
+}

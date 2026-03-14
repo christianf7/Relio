@@ -22,6 +22,8 @@ export const env = createEnv({
     R2_SECRET_ACCESS_KEY: z.string().min(1),
     R2_BUCKET_NAME: z.string().min(1),
     R2_PUBLIC_URL: z.url(),
+    ELASTICSEARCH_URL: z.string().optional(),
+    ELASTICSEARCH_API_KEY: z.string().optional(),
   },
 
   /**

@@ -118,6 +118,15 @@ export default function HomeScreen() {
   const userId = session?.user?.id;
   const [activeEventIndex, setActiveEventIndex] = useState(0);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [selectedRecommendation, setSelectedRecommendation] = useState<{
+    reason: string;
+    signals: {
+      type: "connections" | "unit_peers" | "popularity" | "happening_soon";
+      label: string;
+      icon: string;
+      names?: string[];
+    }[];
+  } | null>(null);
 
   const {
     data: myUpcomingEvents = [],
@@ -458,7 +467,13 @@ export default function HomeScreen() {
                 <Pressable
                   key={event.id}
                   style={styles.suggestedCard}
-                  onPress={() => setSelectedEventId(event.id)}
+                  onPress={() => {
+                    setSelectedEventId(event.id);
+                    setSelectedRecommendation({
+                      reason: event.reason,
+                      signals: event.recommendationSignals,
+                    });
+                  }}
                 >
                   {event.bannerUrl ? (
                     <Image
@@ -562,7 +577,10 @@ export default function HomeScreen() {
         visible={!!selectedEventId}
         animationType="slide"
         presentationStyle="pageSheet"
-        onRequestClose={() => setSelectedEventId(null)}
+        onRequestClose={() => {
+          setSelectedEventId(null);
+          setSelectedRecommendation(null);
+        }}
       >
         <View style={styles.modalContainer}>
           {isLoadingSelected ? (
@@ -612,7 +630,10 @@ export default function HomeScreen() {
 
               <Pressable
                 style={styles.modalCloseButton}
-                onPress={() => setSelectedEventId(null)}
+                onPress={() => {
+                  setSelectedEventId(null);
+                  setSelectedRecommendation(null);
+                }}
               >
                 <View style={styles.modalCloseInner}>
                   <Ionicons name="close" size={20} color="#FFFFFF" />
@@ -626,6 +647,75 @@ export default function HomeScreen() {
               >
                 <View style={styles.modalContent}>
                   <Text style={styles.modalTitle}>{selectedEvent.title}</Text>
+
+                  {selectedRecommendation &&
+                    selectedRecommendation.signals.length > 0 && (
+                      <GlassCard style={styles.recommendationCard}>
+                        <View style={styles.recommendationHeader}>
+                          <View style={styles.recommendationIconBg}>
+                            <Ionicons
+                              name="sparkles"
+                              size={14}
+                              color="#6C3CE0"
+                            />
+                          </View>
+                          <Text style={styles.recommendationTitle}>
+                            Why this was recommended
+                          </Text>
+                        </View>
+                        <View style={styles.recommendationSignals}>
+                          {selectedRecommendation.signals.map((signal, i) => (
+                            <View key={i} style={styles.signalRow}>
+                              <View
+                                style={[
+                                  styles.signalIconBg,
+                                  signal.type === "connections" && {
+                                    backgroundColor:
+                                      "rgba(108, 60, 224, 0.15)",
+                                  },
+                                  signal.type === "unit_peers" && {
+                                    backgroundColor:
+                                      "rgba(17, 153, 142, 0.15)",
+                                  },
+                                  signal.type === "popularity" && {
+                                    backgroundColor:
+                                      "rgba(224, 72, 130, 0.15)",
+                                  },
+                                  signal.type === "happening_soon" && {
+                                    backgroundColor:
+                                      "rgba(253, 116, 108, 0.15)",
+                                  },
+                                ]}
+                              >
+                                <Ionicons
+                                  name={signal.icon as any}
+                                  size={14}
+                                  color={
+                                    signal.type === "connections"
+                                      ? "#6C3CE0"
+                                      : signal.type === "unit_peers"
+                                        ? "#11998E"
+                                        : signal.type === "popularity"
+                                          ? "#E04882"
+                                          : "#FD746C"
+                                  }
+                                />
+                              </View>
+                              <View style={styles.signalContent}>
+                                <Text style={styles.signalLabel}>
+                                  {signal.label}
+                                </Text>
+                                {signal.names && signal.names.length > 0 && (
+                                  <Text style={styles.signalNames}>
+                                    {signal.names.join(", ")}
+                                  </Text>
+                                )}
+                              </View>
+                            </View>
+                          ))}
+                        </View>
+                      </GlassCard>
+                    )}
 
                   <GlassCard style={styles.modalMetaCard}>
                     <View style={styles.modalMetaRow}>
@@ -769,6 +859,7 @@ export default function HomeScreen() {
                       style={styles.modalViewFullButton}
                       onPress={() => {
                         setSelectedEventId(null);
+                        setSelectedRecommendation(null);
                         router.push(`/(app)/event/${selectedEvent.id}` as any);
                       }}
                     >
@@ -829,7 +920,10 @@ export default function HomeScreen() {
               <Text style={styles.modalErrorText}>Event not found</Text>
               <Pressable
                 style={styles.modalErrorButton}
-                onPress={() => setSelectedEventId(null)}
+                onPress={() => {
+                  setSelectedEventId(null);
+                  setSelectedRecommendation(null);
+                }}
               >
                 <Text style={styles.modalErrorButtonText}>Close</Text>
               </Pressable>
@@ -1417,5 +1511,65 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#6C3CE0",
+  },
+
+  recommendationCard: {
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "rgba(108, 60, 224, 0.12)",
+  },
+  recommendationHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 16,
+  },
+  recommendationIconBg: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: "rgba(108, 60, 224, 0.12)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  recommendationTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "rgba(255,255,255,0.7)",
+    letterSpacing: -0.1,
+  },
+  recommendationSignals: {
+    gap: 14,
+  },
+  signalRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  signalIconBg: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "rgba(108, 60, 224, 0.12)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 1,
+  },
+  signalContent: {
+    flex: 1,
+    gap: 2,
+  },
+  signalLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.85)",
+    lineHeight: 20,
+  },
+  signalNames: {
+    fontSize: 12,
+    fontWeight: "400",
+    color: "rgba(255,255,255,0.4)",
+    lineHeight: 18,
   },
 });

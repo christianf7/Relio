@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -20,9 +20,16 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import FloatingOrbs from "~/components/FloatingOrbs";
 import { GlassCard } from "~/components/GlassCard";
 import { trpc } from "~/utils/api";
-import { authClient } from "~/utils/auth";
 
 type FilterType = "All" | "Upcoming" | "This Week" | "My Events" | "Past";
+
+const FILTER_TO_API: Record<FilterType, string> = {
+  All: "all",
+  Upcoming: "upcoming",
+  "This Week": "this_week",
+  "My Events": "my_events",
+  Past: "past",
+};
 const FILTERS: FilterType[] = [
   "All",
   "Upcoming",
@@ -138,14 +145,28 @@ function EventCard({
   );
 }
 
+function useDebounce(value: string, delay: number): string {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
 export default function EventsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { data: session } = authClient.useSession();
-  const userId = session?.user?.id;
-
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterType>("All");
+  const debouncedSearch = useDebounce(search, 300);
+
+  const apiFilter = FILTER_TO_API[activeFilter] as
+    | "all"
+    | "upcoming"
+    | "this_week"
+    | "my_events"
+    | "past";
 
   const {
     data: events,
@@ -153,64 +174,16 @@ export default function EventsScreen() {
     error,
     refetch,
     isRefetching,
-  } = useQuery(trpc.event.getEvents.queryOptions());
+    isFetching,
+  } = useQuery(
+    trpc.event.searchEvents.queryOptions({
+      query: debouncedSearch || undefined,
+      filter: apiFilter,
+      limit: 50,
+    }),
+  );
 
-  const filteredEvents = useMemo(() => {
-    if (!events) return [];
-
-    let filtered = [...events];
-
-    if (search.trim()) {
-      const term = search.toLowerCase();
-      filtered = filtered.filter(
-        (e) =>
-          e.title.toLowerCase().includes(term) ||
-          e.location.toLowerCase().includes(term),
-      );
-    }
-
-    const now = new Date();
-
-    switch (activeFilter) {
-      case "Upcoming":
-        filtered = filtered
-          .filter((e) => new Date(e.date) > now)
-          .sort(
-            (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-          );
-        break;
-      case "This Week": {
-        const weekFromNow = new Date(
-          now.getTime() + 7 * 24 * 60 * 60 * 1000,
-        );
-        filtered = filtered
-          .filter((e) => {
-            const d = new Date(e.date);
-            return d > now && d < weekFromNow;
-          })
-          .sort(
-            (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-          );
-        break;
-      }
-      case "My Events":
-        filtered = filtered.filter(
-          (e) =>
-            e.organisers.some((o) => o.id === userId) ||
-            e.participants.some((p) => p.id === userId),
-        );
-        break;
-      case "Past":
-        filtered = filtered
-          .filter((e) => new Date(e.date) < now)
-          .sort(
-            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-          );
-        break;
-    }
-
-    return filtered;
-  }, [events, search, activeFilter, userId]);
+  const filteredEvents = Array.isArray(events) ? events : [];
 
   const renderEmptyList = () => {
     if (isLoading) {
