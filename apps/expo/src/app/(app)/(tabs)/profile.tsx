@@ -293,14 +293,6 @@ export default function ProfileScreen() {
             <Ionicons name="pencil-outline" size={16} color="#FFFFFF" />
             <Text style={styles.editButtonText}>Edit Profile</Text>
           </Pressable>
-          <Pressable
-            style={({ pressed }) => [
-              styles.shareButton,
-              pressed && styles.shareButtonPressed,
-            ]}
-          >
-            <Ionicons name="share-outline" size={18} color="#FFFFFF" />
-          </Pressable>
         </View>
 
         <View style={styles.contentArea}>
