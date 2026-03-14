@@ -82,6 +82,7 @@ export default function ProfileScreen() {
   const connectionsCount = profile?.connectionsCount ?? 0;
   const eventsCount = profile?.eventsCount ?? 0;
   const pendingRequestCount = profile?.pendingRequestCount ?? 0;
+  const unreadDmCount = (profile as any)?.unreadDmCount ?? 0;
   const userId = profile?.id ?? session?.user?.id ?? "";
 
   const socials = useMemo(() => {
@@ -159,6 +160,27 @@ export default function ProfileScreen() {
 
           {/* Top-right buttons */}
           <View style={[styles.topRightButtons, { top: insets.top + 12 }]}>
+            <Pressable
+              style={styles.headerActionButton}
+              onPress={() =>
+                router.push("/(app)/conversations" as any)
+              }
+            >
+              <GlassCard style={styles.settingsButtonInner}>
+                <Ionicons
+                  name="chatbubble-outline"
+                  size={19}
+                  color="#FFFFFF"
+                />
+              </GlassCard>
+              {unreadDmCount > 0 && (
+                <View style={styles.notifBadge}>
+                  <Text style={styles.notifBadgeText}>
+                    {unreadDmCount > 99 ? "99+" : unreadDmCount}
+                  </Text>
+                </View>
+              )}
+            </Pressable>
             <Pressable
               style={styles.headerActionButton}
               onPress={() =>

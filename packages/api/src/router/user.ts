@@ -6,7 +6,7 @@ import { protectedProcedure } from "../trpc";
 
 export const userRouter = {
   getMe: protectedProcedure.query(async ({ ctx }) => {
-    const [user, pendingRequestCount] = await Promise.all([
+    const [user, pendingRequestCount, unreadDmCount] = await Promise.all([
       ctx.db.user.findUnique({
         where: { id: ctx.session.user.id },
         include: {
@@ -26,6 +26,14 @@ export const userRouter = {
           status: "PENDING",
         },
       }),
+      ctx.db.message.count({
+        where: {
+          receiverId: ctx.session.user.id,
+          senderId: { not: ctx.session.user.id },
+          eventId: null,
+          readAt: null,
+        },
+      }),
     ]);
 
     if (!user) return null;
@@ -40,6 +48,7 @@ export const userRouter = {
       connectionsCount,
       eventsCount,
       pendingRequestCount,
+      unreadDmCount,
     };
   }),
 

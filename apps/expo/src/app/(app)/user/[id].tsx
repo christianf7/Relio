@@ -192,8 +192,7 @@ export default function UserProfileScreen() {
   };
 
   const handleMessage = () => {
-    // Navigate to messaging - for now just show alert
-    Alert.alert("Message", `Direct messaging with ${displayName} coming soon!`);
+    router.push(`/(app)/dm/${id}` as any);
   };
 
   const actionPending =

@@ -48,6 +48,24 @@ export default function AppLayout() {
           animation: "slide_from_right",
         }}
       />
+      <Stack.Screen
+        name="conversations"
+        options={{
+          animation: "slide_from_right",
+        }}
+      />
+      <Stack.Screen
+        name="dm/[id]"
+        options={{
+          animation: "slide_from_right",
+        }}
+      />
+      <Stack.Screen
+        name="event-chat/[id]"
+        options={{
+          animation: "slide_from_right",
+        }}
+      />
     </Stack>
   );
 }

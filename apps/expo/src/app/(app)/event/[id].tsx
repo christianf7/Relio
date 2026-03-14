@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -7,12 +7,15 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import QRCode from "react-native-qrcode-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Print from "expo-print";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -59,6 +62,53 @@ export default function EventDetailScreen() {
 
   const [showAttendees, setShowAttendees] = useState(false);
   const [showTicketConfirm, setShowTicketConfirm] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const qrRef = useRef<any>(null);
+
+  const handleShareQr = useCallback(async () => {
+    if (!event) return;
+    try {
+      await Share.share({
+        message: `Join "${event.title}" on Relio! Scan the QR code or open: relio://event/${event.id}`,
+      });
+    } catch {
+      // user cancelled share
+    }
+  }, [event]);
+
+  const handlePrintQr = useCallback(() => {
+    if (!event || !qrRef.current) return;
+    qrRef.current.toDataURL((base64: string) => {
+      const html = `
+        <html>
+          <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body { font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #fff; }
+              .card { text-align: center; padding: 48px 32px; max-width: 400px; }
+              .brand { font-size: 14px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #6C3CE0; margin-bottom: 24px; }
+              .title { font-size: 26px; font-weight: 800; color: #0A0A1A; margin-bottom: 8px; }
+              .date { font-size: 14px; color: #666; margin-bottom: 32px; }
+              .qr { margin: 0 auto 32px; }
+              .qr img { width: 240px; height: 240px; }
+              .hint { font-size: 13px; color: #999; }
+            </style>
+          </head>
+          <body>
+            <div class="card">
+              <div class="brand">Relio</div>
+              <div class="title">${event.title.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
+              <div class="date">${new Date(event.date).toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · ${event.location.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
+              <div class="qr"><img src="data:image/png;base64,${base64}" /></div>
+              <div class="hint">Scan this QR code with Relio to join the event</div>
+            </div>
+          </body>
+        </html>
+      `;
+      Print.printAsync({ html }).catch(() => {});
+    });
+  }, [event]);
 
   const isOrganiser = useMemo(
     () => event?.organisers.some((o) => o.id === userId) ?? false,
@@ -330,30 +380,76 @@ export default function EventDetailScreen() {
             </View>
           </GlassCard>
 
+          {(isOrganiser || isParticipant) && (
+            <Pressable
+              style={({ pressed }) => [
+                styles.chatButton,
+                pressed && styles.chatButtonPressed,
+              ]}
+              onPress={() =>
+                router.push(`/(app)/event-chat/${event.id}` as any)
+              }
+            >
+              <LinearGradient
+                colors={["#6C3CE0", "#8B5CF6"]}
+                style={styles.chatButtonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Ionicons name="chatbubbles-outline" size={20} color="#FFFFFF" />
+                <Text style={styles.chatButtonText}>Event Chat</Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={16}
+                  color="rgba(255,255,255,0.6)"
+                />
+              </LinearGradient>
+            </Pressable>
+          )}
+
           {isOrganiser && (
-            <View style={styles.organiserActions}>
+            <>
               <Pressable
                 style={({ pressed }) => [
-                  styles.editButton,
-                  pressed && styles.editButtonPressed,
+                  styles.shareQrButton,
+                  pressed && styles.shareQrButtonPressed,
                 ]}
-                onPress={handleEdit}
+                onPress={() => setShowQrModal(true)}
               >
-                <Ionicons name="create-outline" size={18} color="#6C3CE0" />
-                <Text style={styles.editButtonText}>Edit Event</Text>
+                <LinearGradient
+                  colors={["#6C3CE0", "#E04882"]}
+                  style={styles.shareQrGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Ionicons name="qr-code-outline" size={20} color="#FFFFFF" />
+                  <Text style={styles.shareQrText}>Event QR Code</Text>
+                </LinearGradient>
               </Pressable>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.deleteButton,
-                  pressed && styles.deleteButtonPressed,
-                ]}
-                onPress={handleDelete}
-                disabled={deleteMutation.isPending}
-              >
-                <Ionicons name="trash-outline" size={18} color="#E04882" />
-                <Text style={styles.deleteButtonText}>Delete</Text>
-              </Pressable>
-            </View>
+              <View style={styles.organiserActions}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.editButton,
+                    pressed && styles.editButtonPressed,
+                  ]}
+                  onPress={handleEdit}
+                >
+                  <Ionicons name="create-outline" size={18} color="#6C3CE0" />
+                  <Text style={styles.editButtonText}>Edit Event</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.deleteButton,
+                    pressed && styles.deleteButtonPressed,
+                  ]}
+                  onPress={handleDelete}
+                  disabled={deleteMutation.isPending}
+                >
+                  <Ionicons name="trash-outline" size={18} color="#E04882" />
+                  <Text style={styles.deleteButtonText}>Delete</Text>
+                </Pressable>
+              </View>
+            </>
           )}
         </View>
       </ScrollView>
@@ -534,6 +630,73 @@ export default function EventDetailScreen() {
                 >
                   <Text style={styles.confirmJoinText}>I Have My Ticket</Text>
                 </LinearGradient>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={showQrModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowQrModal(false)}
+      >
+        <Pressable
+          style={styles.qrOverlay}
+          onPress={() => setShowQrModal(false)}
+        >
+          <Pressable style={styles.qrModalCard}>
+            <View style={styles.qrModalHeader}>
+              <Text style={styles.qrModalTitle}>Event QR Code</Text>
+              <Pressable
+                onPress={() => setShowQrModal(false)}
+                style={styles.qrModalClose}
+              >
+                <Ionicons name="close" size={20} color="rgba(255,255,255,0.6)" />
+              </Pressable>
+            </View>
+
+            <Text style={styles.qrEventName}>{event?.title}</Text>
+
+            <View style={styles.qrCodeContainer}>
+              <View style={styles.qrCodeBackground}>
+                {event?.id && (
+                  <QRCode
+                    getRef={(c) => (qrRef.current = c)}
+                    value={`relio://event/${event.id}`}
+                    size={200}
+                    backgroundColor="#FFFFFF"
+                    color="#0A0A1A"
+                  />
+                )}
+              </View>
+            </View>
+
+            <Text style={styles.qrModalHint}>
+              Attendees can scan this to instantly join
+            </Text>
+
+            <View style={styles.qrActionRow}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.qrShareButton,
+                  pressed && styles.qrShareButtonPressed,
+                ]}
+                onPress={handleShareQr}
+              >
+                <Ionicons name="share-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.qrShareButtonText}>Share</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.qrPrintButton,
+                  pressed && styles.qrPrintButtonPressed,
+                ]}
+                onPress={handlePrintQr}
+              >
+                <Ionicons name="print-outline" size={18} color="#6C3CE0" />
+                <Text style={styles.qrPrintButtonText}>Print</Text>
               </Pressable>
             </View>
           </Pressable>
@@ -1013,6 +1176,136 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   confirmJoinText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+
+  chatButton: {
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  chatButtonPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.985 }],
+  },
+  chatButtonGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 15,
+    borderRadius: 14,
+    gap: 10,
+  },
+  chatButtonText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+
+  shareQrButton: {
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  shareQrButtonPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.985 }],
+  },
+  shareQrGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 15,
+    borderRadius: 14,
+    gap: 10,
+  },
+  shareQrText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+
+  qrOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.75)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 32,
+  },
+  qrModalCard: {
+    width: "100%",
+    backgroundColor: "#1A1A2E",
+    borderRadius: 28,
+    padding: 28,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
+  },
+  qrModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    marginBottom: 8,
+  },
+  qrModalTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.35)",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  qrModalClose: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  qrEventName: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    textAlign: "center",
+    marginBottom: 24,
+    letterSpacing: -0.3,
+  },
+  qrCodeContainer: {
+    borderRadius: 20,
+    padding: 4,
+    backgroundColor: "rgba(108, 60, 224, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(108, 60, 224, 0.15)",
+    marginBottom: 20,
+  },
+  qrCodeBackground: {
+    backgroundColor: "#FFFFFF",
+    padding: 20,
+    borderRadius: 16,
+  },
+  qrModalHint: {
+    fontSize: 14,
+    fontWeight: "400",
+    color: "rgba(255,255,255,0.4)",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  qrShareButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    width: "100%",
+    paddingVertical: 15,
+    borderRadius: 14,
+    backgroundColor: "#6C3CE0",
+  },
+  qrShareButtonPressed: {
+    backgroundColor: "#5A2FCB",
+  },
+  qrShareButtonText: {
     fontSize: 15,
     fontWeight: "700",
     color: "#FFFFFF",

@@ -13,8 +13,7 @@ import QRCode from "react-native-qrcode-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { LinearGradient } from "expo-linear-gradient";
-import { useIsFocused } from "@react-navigation/native";
-import { useRouter } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
@@ -72,7 +71,8 @@ export default function ScanScreen() {
   const [scannedUserId, setScannedUserId] = useState<string | null>(null);
   const [hasScanned, setHasScanned] = useState(false);
   const lastScanAtRef = useRef(0);
-  const isFocused = useIsFocused();
+  const pathname = usePathname();
+  const isFocused = pathname === "/scan";
 
   const cameraActive = isFocused && mode === "scan";
 
