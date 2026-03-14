@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -145,50 +145,70 @@ function ConnectionCard({
 function MatchCard({
   match,
   onPress,
+  onConnect,
+  isConnecting,
 }: {
   match: MatchItem;
   onPress: () => void;
+  onConnect: () => void;
+  isConnecting: boolean;
 }) {
   const name = match.user.displayName ?? match.user.name;
   const gradient = getGradientForId(match.user.id);
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.matchCard,
-        pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
-      ]}
-    >
-      <View style={styles.matchAvatarWrap}>
-        {match.user.image ? (
-          <Image source={{ uri: match.user.image }} style={styles.matchAvatar} />
+    <View style={styles.matchCard}>
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.matchCardInner,
+          pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
+        ]}
+      >
+        <View style={styles.matchAvatarWrap}>
+          {match.user.image ? (
+            <Image source={{ uri: match.user.image }} style={styles.matchAvatar} />
+          ) : (
+            <LinearGradient
+              colors={gradient}
+              style={styles.matchAvatar}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Text style={styles.matchInitials}>{getInitials(name)}</Text>
+            </LinearGradient>
+          )}
+          <View style={styles.matchBadge}>
+            <Ionicons name="heart" size={10} color="#FFFFFF" />
+          </View>
+        </View>
+        <Text style={styles.matchName} numberOfLines={1}>{name}</Text>
+        {match.user.nextEvent ? (
+          <View style={styles.matchMeetWrap}>
+            <Ionicons name="location" size={10} color="#FCD34D" />
+            <Text style={styles.matchMeetText} numberOfLines={1}>
+              {match.user.nextEvent.title}
+            </Text>
+          </View>
+        ) : match.user.university ? (
+          <Text style={styles.matchUniText} numberOfLines={1}>{match.user.university}</Text>
+        ) : null}
+      </Pressable>
+      <Pressable
+        onPress={onConnect}
+        disabled={isConnecting}
+        style={({ pressed }) => [
+          styles.matchConnectBtn,
+          pressed && { opacity: 0.8 },
+        ]}
+      >
+        {isConnecting ? (
+          <ActivityIndicator size="small" color="#FFFFFF" />
         ) : (
-          <LinearGradient
-            colors={gradient}
-            style={styles.matchAvatar}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Text style={styles.matchInitials}>{getInitials(name)}</Text>
-          </LinearGradient>
+          <Ionicons name="person-add" size={13} color="#FFFFFF" />
         )}
-        <View style={styles.matchBadge}>
-          <Ionicons name="heart" size={10} color="#FFFFFF" />
-        </View>
-      </View>
-      <Text style={styles.matchName} numberOfLines={1}>{name}</Text>
-      {match.user.nextEvent ? (
-        <View style={styles.matchMeetWrap}>
-          <Ionicons name="location" size={10} color="#FCD34D" />
-          <Text style={styles.matchMeetText} numberOfLines={1}>
-            {match.user.nextEvent.title}
-          </Text>
-        </View>
-      ) : match.user.university ? (
-        <Text style={styles.matchUniText} numberOfLines={1}>{match.user.university}</Text>
-      ) : null}
-    </Pressable>
+      </Pressable>
+    </View>
   );
 }
 
@@ -277,6 +297,8 @@ export default function PeopleScreen() {
   const [search, setSearch] = useState("");
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [decliningId, setDecliningId] = useState<string | null>(null);
+  const [connectingMatchId, setConnectingMatchId] = useState<string | null>(null);
+  const isManualRefresh = useRef(false);
 
   const {
     data: connections,
@@ -330,6 +352,38 @@ export default function PeopleScreen() {
     }),
   );
 
+  const connectFromMatchMutation = useMutation(
+    (trpc as any).discover.connectFromMatch.mutationOptions({
+      onSuccess: (result: any, variables: any) => {
+        setConnectingMatchId(null);
+        queryClient.invalidateQueries({
+          queryKey: [["connection", "getConnections"]],
+        });
+        queryClient.invalidateQueries({
+          queryKey: [["discover", "getMatches"]],
+        });
+        queryClient.invalidateQueries({
+          queryKey: [["user", "getMe"]],
+        });
+        if (result.alreadyConnected) {
+          Alert.alert("Already Connected", "You're already connected with this person.");
+        } else {
+          Alert.alert("Connected!", "You are now connected.", [
+            {
+              text: "View Profile",
+              onPress: () => router.push(`/(app)/user/${variables.matchedUserId}` as any),
+            },
+            { text: "OK" },
+          ]);
+        }
+      },
+      onError: (err: any) => {
+        setConnectingMatchId(null);
+        Alert.alert("Error", err.message);
+      },
+    }),
+  );
+
   const filteredConnections = useMemo(() => {
     if (!connections) return [];
     if (!search.trim()) return connections;
@@ -342,6 +396,7 @@ export default function PeopleScreen() {
   }, [connections, search]);
 
   const handleRefresh = useCallback(() => {
+    isManualRefresh.current = true;
     refetchConnections();
     refetchRequests();
     refetchMatches();
@@ -350,6 +405,12 @@ export default function PeopleScreen() {
   const pendingRequests = (incomingRequests ?? []) as PendingRequest[];
   const matchList = (matches ?? []) as MatchItem[];
   const isRefetching = isRefetchingConnections || isRefetchingRequests || isRefetchingMatches;
+
+  useEffect(() => {
+    if (!isRefetching) {
+      isManualRefresh.current = false;
+    }
+  }, [isRefetching]);
 
   const listHeader = (
     <View>
@@ -429,6 +490,11 @@ export default function PeopleScreen() {
                 onPress={() =>
                   router.push(`/(app)/user/${item.user.id}` as any)
                 }
+                onConnect={() => {
+                  setConnectingMatchId(item.user.id);
+                  (connectFromMatchMutation as any).mutate({ matchedUserId: item.user.id });
+                }}
+                isConnecting={connectingMatchId === item.user.id}
               />
             )}
           />
@@ -524,7 +590,7 @@ export default function PeopleScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={isRefetching}
+            refreshing={isManualRefresh.current && isRefetching}
             onRefresh={handleRefresh}
             tintColor="#6C3CE0"
           />
@@ -630,6 +696,10 @@ const styles = StyleSheet.create({
   matchCard: {
     width: 110,
     alignItems: "center",
+    gap: 6,
+  },
+  matchCardInner: {
+    alignItems: "center",
     gap: 8,
   },
   matchAvatarWrap: {
@@ -687,6 +757,17 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.4)",
     textAlign: "center",
     maxWidth: 100,
+  },
+  matchConnectBtn: {
+    backgroundColor: "#6C3CE0",
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 10,
+    marginTop: 2,
+    justifyContent: "center",
+    alignItems: "center",
+    minWidth: 40,
+    minHeight: 28,
   },
 
   requestsSection: {

@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { PrismaClient } from "@prisma/client";
+import { es, USERS_INDEX, EVENTS_INDEX } from "@acme/es";
 
 const db = new PrismaClient();
 
@@ -434,6 +435,24 @@ async function main() {
     db.verification.deleteMany(),
     db.user.deleteMany(),
   ]);
+
+  if (es) {
+    console.log("Clearing Elasticsearch indices...");
+    const indices = [USERS_INDEX, EVENTS_INDEX];
+    for (const index of indices) {
+      const exists = await es.indices.exists({ index });
+      if (exists) {
+        await es.deleteByQuery({
+          index,
+          body: { query: { match_all: {} } },
+          refresh: true,
+        });
+        console.log(`  Cleared index "${index}"`);
+      }
+    }
+  } else {
+    console.warn("Elasticsearch client not available – skipping ES cleanup");
+  }
 
   console.log("Seeding users...");
 

@@ -36,6 +36,7 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@acme/es": "workspace:*",
     "@prisma/client": "^6.19.2",
     "@types/node": "catalog:",
     "zod": "catalog:"

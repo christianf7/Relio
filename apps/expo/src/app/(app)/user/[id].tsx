@@ -335,15 +335,22 @@ export default function UserProfileScreen() {
           </View>
         </View>
 
-        {/* Connection badge */}
-        {user.connectionStatus === "connected" && (
+        {/* Connection / Match badge */}
+        {user.connectionStatus === "connected" ? (
           <View style={styles.connectedBadgeRow}>
             <View style={styles.connectedBadge}>
               <Ionicons name="checkmark-circle" size={14} color="#34D399" />
               <Text style={styles.connectedBadgeText}>Connected</Text>
             </View>
           </View>
-        )}
+        ) : (user as any).isMatched ? (
+          <View style={styles.connectedBadgeRow}>
+            <View style={styles.matchedBadge}>
+              <Ionicons name="heart" size={14} color="#E04882" />
+              <Text style={styles.matchedBadgeText}>Matched</Text>
+            </View>
+          </View>
+        ) : null}
 
         {/* Name + Handle */}
         <View style={styles.nameSection}>
@@ -722,6 +729,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     color: "#34D399",
+  },
+  matchedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(224, 72, 130, 0.12)",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 100,
+  },
+  matchedBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#E04882",
   },
 
   nameSection: {

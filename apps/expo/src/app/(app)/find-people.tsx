@@ -101,6 +101,7 @@ function MatchOverlay({
   onDismiss: () => void;
   onViewProfile: () => void;
 }) {
+  const insets = useSafeAreaInsets();
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
   const ringScale1 = useSharedValue(0);
@@ -187,7 +188,7 @@ function MatchOverlay({
   const gradient = getGradientForId(matchedUser.id);
 
   return (
-    <Animated.View style={[styles.matchOverlay, containerStyle]}>
+    <Animated.View style={[styles.matchOverlay, containerStyle, { paddingBottom: insets.bottom + 32, paddingTop: insets.top + 16 }]}>
       <View style={styles.matchContent}>
         <View style={styles.matchRingContainer}>
           <Animated.View style={[styles.matchRing, styles.matchRing3, ring3Style]} />
@@ -1312,7 +1313,8 @@ const styles = StyleSheet.create({
   matchContent: {
     alignItems: "center",
     gap: 28,
-    paddingHorizontal: 32,
+    paddingHorizontal: 24,
+    width: "100%",
   },
   matchRingContainer: {
     width: 180,
@@ -1354,7 +1356,8 @@ const styles = StyleSheet.create({
   },
   matchTextContainer: {
     alignItems: "center",
-    gap: 8,
+    gap: 10,
+    paddingHorizontal: 8,
   },
   matchTitle: {
     fontSize: 32,
@@ -1388,14 +1391,16 @@ const styles = StyleSheet.create({
   matchButtons: {
     width: "100%",
     gap: 12,
-    marginTop: 4,
+    marginTop: 8,
+    paddingHorizontal: 8,
   },
   matchPrimaryButton: {
     borderRadius: 16,
     overflow: "hidden",
   },
   matchPrimaryGradient: {
-    paddingVertical: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
     alignItems: "center",
     borderRadius: 16,
   },
@@ -1405,7 +1410,8 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   matchSecondaryButton: {
-    paddingVertical: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
     alignItems: "center",
     borderRadius: 16,
     backgroundColor: "rgba(255,255,255,0.06)",

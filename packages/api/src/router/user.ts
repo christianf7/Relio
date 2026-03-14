@@ -117,30 +117,39 @@ export const userRouter = {
         throw new TRPCError({ code: "NOT_FOUND", message: "User not found." });
       }
 
-      const isConnected = await ctx.db.user.findFirst({
-        where: {
-          id: ctx.session.user.id,
-          OR: [
-            { connections: { some: { id: input.id } } },
-            { connectedBy: { some: { id: input.id } } },
-          ],
-        },
-        select: { id: true },
-      });
-
-      const pendingRequest = await ctx.db.connectionRequest.findFirst({
-        where: {
-          OR: [
-            { senderId: ctx.session.user.id, receiverId: input.id },
-            { senderId: input.id, receiverId: ctx.session.user.id },
-          ],
-          status: "PENDING",
-        },
-        select: {
-          id: true,
-          senderId: true,
-        },
-      });
+      const [isConnected, pendingRequest, isMatched] = await Promise.all([
+        ctx.db.user.findFirst({
+          where: {
+            id: ctx.session.user.id,
+            OR: [
+              { connections: { some: { id: input.id } } },
+              { connectedBy: { some: { id: input.id } } },
+            ],
+          },
+          select: { id: true },
+        }),
+        ctx.db.connectionRequest.findFirst({
+          where: {
+            OR: [
+              { senderId: ctx.session.user.id, receiverId: input.id },
+              { senderId: input.id, receiverId: ctx.session.user.id },
+            ],
+            status: "PENDING",
+          },
+          select: {
+            id: true,
+            senderId: true,
+          },
+        }),
+        ctx.db.swipe.findFirst({
+          where: {
+            swiperId: ctx.session.user.id,
+            swipedId: input.id,
+            matched: true,
+          },
+          select: { id: true },
+        }),
+      ]);
 
       const connectionsCount =
         user._count.connections + user._count.connectedBy;
@@ -167,6 +176,7 @@ export const userRouter = {
               : ("pending_received" as const)
             : ("none" as const),
         pendingRequestId: pendingRequest?.id ?? null,
+        isMatched: !!isMatched,
       };
     }),
 

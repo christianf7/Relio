@@ -323,47 +323,63 @@ export const discoverRouter = {
   getMatches: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.session.user.id;
 
-    const matches = await ctx.db.swipe.findMany({
-      where: {
-        swiperId: userId,
-        matched: true,
-      },
-      include: {
-        swiped: {
-          select: {
-            id: true,
-            name: true,
-            displayName: true,
-            image: true,
-            enrolledUnits: true,
-            upcomingEvents: {
-              where: { date: { gte: new Date() } },
-              select: { id: true, title: true, date: true },
-              orderBy: { date: "asc" },
-              take: 1,
+    const [matches, currentUser] = await Promise.all([
+      ctx.db.swipe.findMany({
+        where: {
+          swiperId: userId,
+          matched: true,
+        },
+        include: {
+          swiped: {
+            select: {
+              id: true,
+              name: true,
+              displayName: true,
+              image: true,
+              enrolledUnits: true,
+              upcomingEvents: {
+                where: { date: { gte: new Date() } },
+                select: { id: true, title: true, date: true },
+                orderBy: { date: "asc" },
+                take: 1,
+              },
             },
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: { createdAt: "desc" },
+      }),
+      ctx.db.user.findUnique({
+        where: { id: userId },
+        select: {
+          connections: { select: { id: true } },
+          connectedBy: { select: { id: true } },
+        },
+      }),
+    ]);
 
-    return matches.map((m) => ({
-      matchedAt: m.createdAt,
-      user: {
-        id: m.swiped.id,
-        name: m.swiped.name,
-        displayName: m.swiped.displayName,
-        image: m.swiped.image,
-        university:
-          (
-            Array.isArray(m.swiped.enrolledUnits)
-              ? (m.swiped.enrolledUnits as EnrolledUnit[])[0]?.university
-              : null
-          ) ?? null,
-        nextEvent: m.swiped.upcomingEvents[0] ?? null,
-      },
-    }));
+    const connectedIds = new Set([
+      ...(currentUser?.connections.map((c) => c.id) ?? []),
+      ...(currentUser?.connectedBy.map((c) => c.id) ?? []),
+    ]);
+
+    return matches
+      .filter((m) => !connectedIds.has(m.swiped.id))
+      .map((m) => ({
+        matchedAt: m.createdAt,
+        user: {
+          id: m.swiped.id,
+          name: m.swiped.name,
+          displayName: m.swiped.displayName,
+          image: m.swiped.image,
+          university:
+            (
+              Array.isArray(m.swiped.enrolledUnits)
+                ? (m.swiped.enrolledUnits as EnrolledUnit[])[0]?.university
+                : null
+            ) ?? null,
+          nextEvent: m.swiped.upcomingEvents[0] ?? null,
+        },
+      }));
   }),
 
   undoLastSwipe: protectedProcedure.mutation(async ({ ctx }) => {
