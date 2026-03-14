@@ -633,15 +633,16 @@ const styles = StyleSheet.create({
     paddingLeft: 18,
     paddingRight: 6,
     paddingVertical: 6,
+    marginBottom: 10,
     gap: 8,
   },
   textInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: "400",
     color: "#FFFFFF",
     maxHeight: 100,
-    paddingVertical: 6,
+    paddingVertical: 8,
     padding: 0,
   },
   sendButton: {
