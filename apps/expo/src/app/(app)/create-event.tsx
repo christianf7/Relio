@@ -12,13 +12,13 @@ import {
   TextInput,
   View,
 } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GlassCard } from "~/components/GlassCard";
 import { trpc } from "~/utils/api";
@@ -195,10 +195,13 @@ export default function CreateEventScreen() {
         {
           onSuccess: () => {
             queryClient.invalidateQueries();
-            router.back();
+            router.push(`/(app)/event/${params.id}?from=create-event` as any);
           },
           onError: (err) => {
-            Alert.alert("Update Failed", err.message || "Something went wrong.");
+            Alert.alert(
+              "Update Failed",
+              err.message || "Something went wrong.",
+            );
           },
         },
       );
@@ -213,12 +216,17 @@ export default function CreateEventScreen() {
           ticketUrl: trimmedTicketUrl,
         },
         {
-          onSuccess: () => {
+          onSuccess: (createdEvent) => {
             queryClient.invalidateQueries();
-            router.back();
+            router.push(
+              `/(app)/event/${createdEvent.id}?from=create-event` as any,
+            );
           },
           onError: (err) => {
-            Alert.alert("Creation Failed", err.message || "Something went wrong.");
+            Alert.alert(
+              "Creation Failed",
+              err.message || "Something went wrong.",
+            );
           },
         },
       );
@@ -453,7 +461,8 @@ export default function CreateEventScreen() {
               returnKeyType="done"
             />
             <Text style={styles.ticketHint}>
-              If provided, attendees will be prompted to get a ticket before joining
+              If provided, attendees will be prompted to get a ticket before
+              joining
             </Text>
           </FormSection>
 
