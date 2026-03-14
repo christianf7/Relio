@@ -5,7 +5,7 @@ import {
   Alert,
   FlatList,
   Image,
-  KeyboardAvoidingView,
+  Keyboard,
   Platform,
   Pressable,
   StyleSheet,
@@ -13,9 +13,15 @@ import {
   TextInput,
   View,
 } from "react-native";
-import Animated, { FadeIn } from "react-native-reanimated";
+import Animated, {
+  FadeIn,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
@@ -146,6 +152,35 @@ function MessageBubble({
   );
 }
 
+function useKeyboardHeight() {
+  const insets = useSafeAreaInsets();
+  const keyboardHeight = useSharedValue(0);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      keyboardHeight.value = withTiming(e.endCoordinates.height - insets.bottom, {
+        duration: Platform.OS === "ios" ? 250 : 150,
+      });
+    });
+
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      keyboardHeight.value = withTiming(0, {
+        duration: Platform.OS === "ios" ? 250 : 150,
+      });
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [insets.bottom]);
+
+  return keyboardHeight;
+}
+
 export default function DirectMessageScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -157,6 +192,12 @@ export default function DirectMessageScreen() {
   const [messageText, setMessageText] = useState("");
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
+
+  const keyboardHeight = useKeyboardHeight();
+
+  const animatedContainerStyle = useAnimatedStyle(() => ({
+    paddingBottom: keyboardHeight.value,
+  }));
 
   const { data: otherUser, isLoading: userLoading } = useQuery(
     trpc.user.getById.queryOptions({ id }),
@@ -180,6 +221,8 @@ export default function DirectMessageScreen() {
     trpc.message.markConversationRead.mutationOptions(),
   );
 
+  const prevMessageCountRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (id) {
       markReadMutation.mutate(
@@ -201,10 +244,31 @@ export default function DirectMessageScreen() {
     }
   }, [id, messages?.length]);
 
+  useEffect(() => {
+    if (!messages) return;
+    const count = messages.length;
+    if (prevMessageCountRef.current !== null && count > prevMessageCountRef.current) {
+      const lastMsg = messages[messages.length - 1] as Message | undefined;
+      if (lastMsg && lastMsg.senderId !== myId) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    }
+    prevMessageCountRef.current = count;
+  }, [messages?.length]);
+
+  useEffect(() => {
+    if (keyboardHeight.value > 0 && messages && messages.length > 0) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [keyboardHeight.value]);
+
   const handleSend = useCallback(() => {
     const trimmed = messageText.trim();
     if (!trimmed || sendMutation.isPending) return;
 
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setMessageText("");
     sendMutation.mutate(
       { receiverId: id, content: trimmed },
@@ -311,11 +375,7 @@ export default function DirectMessageScreen() {
         <View style={{ width: 44 }} />
       </View>
 
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={0}
-      >
+      <Animated.View style={[{ flex: 1 }, animatedContainerStyle]}>
         {isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#6C3CE0" />
@@ -359,11 +419,10 @@ export default function DirectMessageScreen() {
               />
             )}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={[
-              styles.messagesList,
-              { paddingBottom: 8 },
-            ]}
+            contentContainerStyle={styles.messagesList}
             showsVerticalScrollIndicator={false}
+            keyboardDismissMode="interactive"
+            keyboardShouldPersistTaps="handled"
             onContentSizeChange={() => {
               flatListRef.current?.scrollToEnd({ animated: false });
             }}
@@ -386,7 +445,6 @@ export default function DirectMessageScreen() {
               onChangeText={setMessageText}
               multiline
               maxLength={4000}
-              returnKeyType="default"
             />
             <Pressable
               onPress={handleSend}
@@ -406,7 +464,7 @@ export default function DirectMessageScreen() {
             </Pressable>
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </Animated.View>
     </View>
   );
 }
@@ -463,10 +521,6 @@ const styles = StyleSheet.create({
     color: "#34D399",
   },
 
-  keyboardView: {
-    flex: 1,
-  },
-
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -508,6 +562,7 @@ const styles = StyleSheet.create({
   messagesList: {
     paddingHorizontal: 16,
     paddingTop: 16,
+    paddingBottom: 8,
   },
 
   bubbleContainer: {

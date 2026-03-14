@@ -381,75 +381,100 @@ export default function EventDetailScreen() {
           </GlassCard>
 
           {(isOrganiser || isParticipant) && (
-            <Pressable
-              style={({ pressed }) => [
-                styles.chatButton,
-                pressed && styles.chatButtonPressed,
-              ]}
-              onPress={() =>
-                router.push(`/(app)/event-chat/${event.id}` as any)
-              }
-            >
-              <LinearGradient
-                colors={["#6C3CE0", "#8B5CF6"]}
-                style={styles.chatButtonGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+            <GlassCard style={styles.actionsCard}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.actionRow,
+                  pressed && styles.actionRowPressed,
+                ]}
+                onPress={() =>
+                  router.push(`/(app)/event-chat/${event.id}` as any)
+                }
               >
-                <Ionicons name="chatbubbles-outline" size={20} color="#FFFFFF" />
-                <Text style={styles.chatButtonText}>Event Chat</Text>
+                <View style={[styles.actionIconBg, styles.actionIconPurple]}>
+                  <Ionicons
+                    name="chatbubbles"
+                    size={16}
+                    color="#6C3CE0"
+                  />
+                </View>
+                <Text style={styles.actionRowLabel}>Event Chat</Text>
                 <Ionicons
                   name="chevron-forward"
                   size={16}
-                  color="rgba(255,255,255,0.6)"
+                  color="rgba(255,255,255,0.25)"
                 />
-              </LinearGradient>
-            </Pressable>
-          )}
-
-          {isOrganiser && (
-            <>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.shareQrButton,
-                  pressed && styles.shareQrButtonPressed,
-                ]}
-                onPress={() => setShowQrModal(true)}
-              >
-                <LinearGradient
-                  colors={["#6C3CE0", "#E04882"]}
-                  style={styles.shareQrGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                >
-                  <Ionicons name="qr-code-outline" size={20} color="#FFFFFF" />
-                  <Text style={styles.shareQrText}>Event QR Code</Text>
-                </LinearGradient>
               </Pressable>
-              <View style={styles.organiserActions}>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.editButton,
-                    pressed && styles.editButtonPressed,
-                  ]}
-                  onPress={handleEdit}
-                >
-                  <Ionicons name="create-outline" size={18} color="#6C3CE0" />
-                  <Text style={styles.editButtonText}>Edit Event</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.deleteButton,
-                    pressed && styles.deleteButtonPressed,
-                  ]}
-                  onPress={handleDelete}
-                  disabled={deleteMutation.isPending}
-                >
-                  <Ionicons name="trash-outline" size={18} color="#E04882" />
-                  <Text style={styles.deleteButtonText}>Delete</Text>
-                </Pressable>
-              </View>
-            </>
+
+              {isOrganiser && (
+                <>
+                  <View style={styles.actionRowDivider} />
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.actionRow,
+                      pressed && styles.actionRowPressed,
+                    ]}
+                    onPress={() => setShowQrModal(true)}
+                  >
+                    <View style={[styles.actionIconBg, styles.actionIconPurple]}>
+                      <Ionicons
+                        name="qr-code"
+                        size={16}
+                        color="#6C3CE0"
+                      />
+                    </View>
+                    <Text style={styles.actionRowLabel}>Event QR Code</Text>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={16}
+                      color="rgba(255,255,255,0.25)"
+                    />
+                  </Pressable>
+                  <View style={styles.actionRowDivider} />
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.actionRow,
+                      pressed && styles.actionRowPressed,
+                    ]}
+                    onPress={handleEdit}
+                  >
+                    <View style={[styles.actionIconBg, styles.actionIconPurple]}>
+                      <Ionicons
+                        name="create"
+                        size={16}
+                        color="#6C3CE0"
+                      />
+                    </View>
+                    <Text style={styles.actionRowLabel}>Edit Event</Text>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={16}
+                      color="rgba(255,255,255,0.25)"
+                    />
+                  </Pressable>
+                  <View style={styles.actionRowDivider} />
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.actionRow,
+                      pressed && styles.actionRowPressed,
+                    ]}
+                    onPress={handleDelete}
+                    disabled={deleteMutation.isPending}
+                  >
+                    <View style={[styles.actionIconBg, styles.actionIconRed]}>
+                      <Ionicons
+                        name="trash"
+                        size={15}
+                        color="#E04882"
+                      />
+                    </View>
+                    <Text style={styles.actionRowLabelDanger}>
+                      Delete Event
+                    </Text>
+                  </Pressable>
+                </>
+              )}
+            </GlassCard>
           )}
         </View>
       </ScrollView>
@@ -911,49 +936,51 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.1)",
   },
 
-  organiserActions: {
-    flexDirection: "row",
-    gap: 12,
+  actionsCard: {
+    borderRadius: 18,
+    padding: 4,
+    overflow: "hidden",
   },
-  editButton: {
-    flex: 1,
+  actionRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    gap: 14,
     borderRadius: 14,
+  },
+  actionRowPressed: {
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+  },
+  actionIconBg: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  actionIconPurple: {
     backgroundColor: "rgba(108, 60, 224, 0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(108, 60, 224, 0.2)",
   },
-  editButtonPressed: {
-    backgroundColor: "rgba(108, 60, 224, 0.2)",
+  actionIconRed: {
+    backgroundColor: "rgba(224, 72, 130, 0.12)",
   },
-  editButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#6C3CE0",
+  actionRowLabel: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "500",
+    color: "#FFFFFF",
   },
-  deleteButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 14,
-    backgroundColor: "rgba(224, 72, 130, 0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(224, 72, 130, 0.15)",
-  },
-  deleteButtonPressed: {
-    backgroundColor: "rgba(224, 72, 130, 0.2)",
-  },
-  deleteButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
+  actionRowLabelDanger: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "500",
     color: "#E04882",
+  },
+  actionRowDivider: {
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    marginHorizontal: 14,
   },
 
   bottomBar: {
@@ -1181,50 +1208,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
 
-  chatButton: {
-    borderRadius: 14,
-    overflow: "hidden",
-  },
-  chatButtonPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.985 }],
-  },
-  chatButtonGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 15,
-    borderRadius: 14,
-    gap: 10,
-  },
-  chatButtonText: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-
-  shareQrButton: {
-    borderRadius: 14,
-    overflow: "hidden",
-  },
-  shareQrButtonPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.985 }],
-  },
-  shareQrGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 15,
-    borderRadius: 14,
-    gap: 10,
-  },
-  shareQrText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
 
   qrOverlay: {
     flex: 1,

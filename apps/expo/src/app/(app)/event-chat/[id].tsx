@@ -1,11 +1,11 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActionSheetIOS,
   ActivityIndicator,
   Alert,
   FlatList,
   Image,
-  KeyboardAvoidingView,
+  Keyboard,
   Platform,
   Pressable,
   StyleSheet,
@@ -13,9 +13,15 @@ import {
   TextInput,
   View,
 } from "react-native";
-import Animated, { FadeIn } from "react-native-reanimated";
+import Animated, {
+  FadeIn,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
@@ -186,6 +192,35 @@ function GroupMessageBubble({
   );
 }
 
+function useKeyboardHeight() {
+  const insets = useSafeAreaInsets();
+  const keyboardHeight = useSharedValue(0);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      keyboardHeight.value = withTiming(e.endCoordinates.height - insets.bottom, {
+        duration: Platform.OS === "ios" ? 250 : 150,
+      });
+    });
+
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      keyboardHeight.value = withTiming(0, {
+        duration: Platform.OS === "ios" ? 250 : 150,
+      });
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [insets.bottom]);
+
+  return keyboardHeight;
+}
+
 export default function EventChatScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -196,6 +231,12 @@ export default function EventChatScreen() {
 
   const [messageText, setMessageText] = useState("");
   const flatListRef = useRef<FlatList>(null);
+
+  const keyboardHeight = useKeyboardHeight();
+
+  const animatedContainerStyle = useAnimatedStyle(() => ({
+    paddingBottom: keyboardHeight.value,
+  }));
 
   const { data: event, isLoading: eventLoading } = useQuery(
     trpc.event.getById.queryOptions({ id }),
@@ -221,10 +262,35 @@ export default function EventChatScreen() {
   const participantCount =
     (event?.participants.length ?? 0) + (event?.organisers.length ?? 0);
 
+  const prevMessageCountRef = useRef<number | null>(null);
+
+  const messageCount = Array.isArray(messages) ? messages.length : 0;
+
+  useEffect(() => {
+    if (!messages || !Array.isArray(messages)) return;
+    const msgs = messages as EventMessage[];
+    if (prevMessageCountRef.current !== null && msgs.length > prevMessageCountRef.current) {
+      const lastMsg = msgs[msgs.length - 1];
+      if (lastMsg && lastMsg.senderId !== myId) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    }
+    prevMessageCountRef.current = msgs.length;
+  }, [messageCount]);
+
+  useEffect(() => {
+    if (keyboardHeight.value > 0 && messages && Array.isArray(messages) && messages.length > 0) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [keyboardHeight.value]);
+
   const handleSend = useCallback(() => {
     const trimmed = messageText.trim();
     if (!trimmed || sendMutation.isPending) return;
 
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setMessageText("");
     sendMutation.mutate(
       { eventId: id, content: trimmed },
@@ -304,11 +370,7 @@ export default function EventChatScreen() {
         <View style={{ width: 44 }} />
       </View>
 
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={0}
-      >
+      <Animated.View style={[{ flex: 1 }, animatedContainerStyle]}>
         {isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#6C3CE0" />
@@ -354,11 +416,10 @@ export default function EventChatScreen() {
               );
             }}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={[
-              styles.messagesList,
-              { paddingBottom: 8 },
-            ]}
+            contentContainerStyle={styles.messagesList}
             showsVerticalScrollIndicator={false}
+            keyboardDismissMode="interactive"
+            keyboardShouldPersistTaps="handled"
             onContentSizeChange={() => {
               flatListRef.current?.scrollToEnd({ animated: false });
             }}
@@ -380,7 +441,6 @@ export default function EventChatScreen() {
               onChangeText={setMessageText}
               multiline
               maxLength={4000}
-              returnKeyType="default"
             />
             <Pressable
               onPress={handleSend}
@@ -400,7 +460,7 @@ export default function EventChatScreen() {
             </Pressable>
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </Animated.View>
     </View>
   );
 }
@@ -444,10 +504,6 @@ const styles = StyleSheet.create({
     color: "rgba(255, 255, 255, 0.4)",
   },
 
-  keyboardView: {
-    flex: 1,
-  },
-
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -485,6 +541,7 @@ const styles = StyleSheet.create({
   messagesList: {
     paddingHorizontal: 16,
     paddingTop: 16,
+    paddingBottom: 8,
   },
 
   groupBubbleContainer: {
