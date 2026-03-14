@@ -10,7 +10,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       projectId: "cadb02e6-0656-4239-b3f0-da5062d19034",
     }
   },
-  version: "0.1.0",
+  version: "0.2.1",
   orientation: "portrait",
   icon: "./assets/icon-light.png",
   userInterfaceStyle: "automatic",
@@ -20,7 +20,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   newArchEnabled: true,
   assetBundlePatterns: ["**/*"],
   ios: {
-    bundleIdentifier: "your.bundle.identifier",
+    bundleIdentifier: "dev.chrisfitz.relio",
     supportsTablet: true,
     icon: {
       light: "./assets/icon-light.png",
@@ -28,7 +28,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
   },
   android: {
-    package: "your.bundle.identifier",
+    package: "dev.chrisfitz.relio",
     adaptiveIcon: {
       foregroundImage: "./assets/icon-light.png",
       backgroundColor: "#1F104A",

@@ -65,6 +65,7 @@ export default function ProfileScreen() {
     profile?.displayName ?? profile?.name ?? session?.user?.name ?? "User";
   const email = profile?.email ?? session?.user?.email ?? "";
   const imageUrl = profile?.image ?? null;
+  const bannerUrl = (profile as any)?.bannerUrl ?? null;
   const slug = (profile as any)?.slug ?? null;
 
   const enrolledUnits: EnrolledUnit[] = useMemo(() => {
@@ -119,44 +120,57 @@ export default function ProfileScreen() {
       >
         {/* Banner + Avatar Hero */}
         <View style={styles.heroSection}>
-          <LinearGradient
-            colors={["#2D1B69", "#6C3CE0", "#E04882"]}
-            style={styles.banner}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <View style={[styles.decorCircle, { top: -20, right: 60 }]} />
-            <View
-              style={[
-                styles.decorCircle,
-                {
-                  width: 140,
-                  height: 140,
-                  borderRadius: 70,
-                  bottom: -50,
-                  right: -30,
-                  opacity: 0.06,
-                },
-              ]}
-            />
-            <View
-              style={[
-                styles.decorCircle,
-                {
-                  width: 50,
-                  height: 50,
-                  borderRadius: 25,
-                  top: 40,
-                  left: 30,
-                  opacity: 0.12,
-                },
-              ]}
-            />
+          {bannerUrl ? (
+            <View style={styles.bannerImageContainer}>
+              <Image
+                source={{ uri: bannerUrl }}
+                style={styles.bannerImage}
+              />
+              <LinearGradient
+                colors={["transparent", "rgba(10, 10, 26, 0.6)", "#0A0A1A"]}
+                style={styles.bannerFade}
+              />
+            </View>
+          ) : (
             <LinearGradient
-              colors={["transparent", "rgba(10, 10, 26, 0.6)", "#0A0A1A"]}
-              style={styles.bannerFade}
-            />
-          </LinearGradient>
+              colors={["#2D1B69", "#6C3CE0", "#E04882"]}
+              style={styles.banner}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <View style={[styles.decorCircle, { top: -20, right: 60 }]} />
+              <View
+                style={[
+                  styles.decorCircle,
+                  {
+                    width: 140,
+                    height: 140,
+                    borderRadius: 70,
+                    bottom: -50,
+                    right: -30,
+                    opacity: 0.06,
+                  },
+                ]}
+              />
+              <View
+                style={[
+                  styles.decorCircle,
+                  {
+                    width: 50,
+                    height: 50,
+                    borderRadius: 25,
+                    top: 40,
+                    left: 30,
+                    opacity: 0.12,
+                  },
+                ]}
+              />
+              <LinearGradient
+                colors={["transparent", "rgba(10, 10, 26, 0.6)", "#0A0A1A"]}
+                style={styles.bannerFade}
+              />
+            </LinearGradient>
+          )}
 
           {/* Top-right buttons */}
           <View style={[styles.topRightButtons, { top: insets.top + 12 }]}>
@@ -435,6 +449,16 @@ const styles = StyleSheet.create({
     width: "100%",
     overflow: "hidden",
     position: "relative",
+  },
+  bannerImageContainer: {
+    height: BANNER_HEIGHT,
+    width: "100%",
+    position: "relative",
+  },
+  bannerImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
   },
   bannerFade: {
     position: "absolute",

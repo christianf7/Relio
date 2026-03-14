@@ -27,8 +27,9 @@ export async function POST(request: Request) {
   const body = (await request.json()) as {
     filename?: string;
     contentType?: string;
+    folder?: string;
   };
-  const { filename, contentType } = body;
+  const { filename, contentType, folder } = body;
 
   if (!filename || !contentType) {
     return NextResponse.json(
@@ -45,8 +46,13 @@ export async function POST(request: Request) {
     );
   }
 
+  const allowedFolders = ["events", "banners", "avatars"];
+  const resolvedFolder = allowedFolders.includes(folder ?? "")
+    ? folder!
+    : "events";
+
   const ext = filename.split(".").pop() ?? "jpg";
-  const key = `events/${randomUUID()}.${ext}`;
+  const key = `${resolvedFolder}/${randomUUID()}.${ext}`;
 
   const command = new PutObjectCommand({
     Bucket: env.R2_BUCKET_NAME,
