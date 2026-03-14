@@ -13,11 +13,11 @@ import {
   TextInput,
   View,
 } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { trpc } from "~/utils/api";
 
@@ -145,7 +145,7 @@ export default function UserProfileScreen() {
     return user.socials as {
       githubUrl?: string;
       linkedInUrl?: string;
-      discordUrl?: string;
+      discordUsername?: string;
     };
   }, [user?.socials]);
 
@@ -220,10 +220,7 @@ export default function UserProfileScreen() {
 
   const handleMessage = () => {
     // Navigate to messaging - for now just show alert
-    Alert.alert(
-      "Message",
-      `Direct messaging with ${displayName} coming soon!`,
-    );
+    Alert.alert("Message", `Direct messaging with ${displayName} coming soon!`);
   };
 
   const actionPending =
@@ -343,11 +340,7 @@ export default function UserProfileScreen() {
             }}
           >
             <GlassCard style={styles.moreButtonInner}>
-              <Ionicons
-                name="ellipsis-horizontal"
-                size={20}
-                color="#FFFFFF"
-              />
+              <Ionicons name="ellipsis-horizontal" size={20} color="#FFFFFF" />
             </GlassCard>
           </Pressable>
 
@@ -492,15 +485,22 @@ export default function UserProfileScreen() {
                     />
                   </Pressable>
                 ) : null}
-                {socials?.discordUrl ? (
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.socialCard,
-                      pressed && styles.socialCardPressed,
-                    ]}
-                  >
+                {socials?.discordUsername ? (
+                  <Pressable style={() => [styles.socialCard]}>
                     <Ionicons name="logo-discord" size={22} color="#5865F2" />
                     <Text style={styles.socialCardLabel}>Discord</Text>
+                    <Text
+                      style={{
+                        marginLeft: "auto",
+                        fontSize: 15,
+                        fontWeight: 500,
+                        color: "#FFFFFF",
+                        opacity: 70,
+                      }}
+                    >
+                      {" "}
+                      {socials.discordUsername}
+                    </Text>
                   </Pressable>
                 ) : null}
               </View>
@@ -526,11 +526,7 @@ export default function UserProfileScreen() {
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
               >
-                <Ionicons
-                  name="chatbubble-outline"
-                  size={18}
-                  color="#FFFFFF"
-                />
+                <Ionicons name="chatbubble-outline" size={18} color="#FFFFFF" />
                 <Text style={styles.messageButtonText}>Message</Text>
               </LinearGradient>
             </Pressable>

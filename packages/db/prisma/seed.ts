@@ -1,5 +1,5 @@
-import { PrismaClient } from "@prisma/client";
 import { randomUUID } from "crypto";
+import { PrismaClient } from "@prisma/client";
 
 const db = new PrismaClient();
 
@@ -23,20 +23,79 @@ function randomInt(min: number, max: number): number {
 }
 
 const FIRST_NAMES = [
-  "Liam", "Noah", "Oliver", "James", "Elijah", "William", "Henry", "Lucas",
-  "Benjamin", "Theodore", "Olivia", "Emma", "Charlotte", "Amelia", "Sophia",
-  "Mia", "Isabella", "Ava", "Evelyn", "Luna", "Ethan", "Mason", "Logan",
-  "Alexander", "Sebastian", "Jack", "Aiden", "Owen", "Samuel", "Ryan",
-  "Harper", "Scarlett", "Aria", "Penelope", "Layla", "Chloe", "Riley",
-  "Zoey", "Nora", "Lily",
+  "Liam",
+  "Noah",
+  "Oliver",
+  "James",
+  "Elijah",
+  "William",
+  "Henry",
+  "Lucas",
+  "Benjamin",
+  "Theodore",
+  "Olivia",
+  "Emma",
+  "Charlotte",
+  "Amelia",
+  "Sophia",
+  "Mia",
+  "Isabella",
+  "Ava",
+  "Evelyn",
+  "Luna",
+  "Ethan",
+  "Mason",
+  "Logan",
+  "Alexander",
+  "Sebastian",
+  "Jack",
+  "Aiden",
+  "Owen",
+  "Samuel",
+  "Ryan",
+  "Harper",
+  "Scarlett",
+  "Aria",
+  "Penelope",
+  "Layla",
+  "Chloe",
+  "Riley",
+  "Zoey",
+  "Nora",
+  "Lily",
 ];
 
 const LAST_NAMES = [
-  "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller",
-  "Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez",
-  "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin",
-  "Lee", "Perez", "Thompson", "White", "Harris", "Sanchez", "Clark",
-  "Ramirez", "Lewis", "Robinson",
+  "Smith",
+  "Johnson",
+  "Williams",
+  "Brown",
+  "Jones",
+  "Garcia",
+  "Miller",
+  "Davis",
+  "Rodriguez",
+  "Martinez",
+  "Hernandez",
+  "Lopez",
+  "Gonzalez",
+  "Wilson",
+  "Anderson",
+  "Thomas",
+  "Taylor",
+  "Moore",
+  "Jackson",
+  "Martin",
+  "Lee",
+  "Perez",
+  "Thompson",
+  "White",
+  "Harris",
+  "Sanchez",
+  "Clark",
+  "Ramirez",
+  "Lewis",
+  "Robinson",
 ];
 
 const UNIVERSITIES = [
@@ -50,34 +109,106 @@ const UNIVERSITIES = [
 
 const UNIT_CODES_BY_UNI: Record<string, string[]> = {
   "Monash University": [
-    "FIT1045", "FIT1047", "FIT2004", "FIT2014", "FIT2099",
-    "FIT3171", "FIT3155", "FIT3077", "FIT3170", "MAT1830",
-    "ENG1005", "FIT1008", "FIT2081", "FIT3143", "FIT3161",
+    "FIT1045",
+    "FIT1047",
+    "FIT2004",
+    "FIT2014",
+    "FIT2099",
+    "FIT3171",
+    "FIT3155",
+    "FIT3077",
+    "FIT3170",
+    "MAT1830",
+    "ENG1005",
+    "FIT1008",
+    "FIT2081",
+    "FIT3143",
+    "FIT3161",
   ],
   "University of Melbourne": [
-    "COMP10001", "COMP10002", "COMP20003", "COMP20007", "COMP30020",
-    "COMP30023", "SWEN20003", "SWEN30006", "INFO20003", "MAST10007",
-    "MAST20026", "COMP30024", "COMP90038", "COMP90049", "SWEN90016",
+    "COMP10001",
+    "COMP10002",
+    "COMP20003",
+    "COMP20007",
+    "COMP30020",
+    "COMP30023",
+    "SWEN20003",
+    "SWEN30006",
+    "INFO20003",
+    "MAST10007",
+    "MAST20026",
+    "COMP30024",
+    "COMP90038",
+    "COMP90049",
+    "SWEN90016",
   ],
   "RMIT University": [
-    "COSC1076", "COSC1114", "COSC2299", "COSC2531", "ISYS1118",
-    "COSC2123", "COSC2500", "COSC2673", "ISYS3413", "MATH1142",
-    "COSC2636", "COSC2803", "ISYS1055", "COSC2758", "COSC2759",
+    "COSC1076",
+    "COSC1114",
+    "COSC2299",
+    "COSC2531",
+    "ISYS1118",
+    "COSC2123",
+    "COSC2500",
+    "COSC2673",
+    "ISYS3413",
+    "MATH1142",
+    "COSC2636",
+    "COSC2803",
+    "ISYS1055",
+    "COSC2758",
+    "COSC2759",
   ],
   "Deakin University": [
-    "SIT102", "SIT103", "SIT104", "SIT202", "SIT206",
-    "SIT210", "SIT221", "SIT305", "SIT313", "SIT374",
-    "SIT120", "SIT153", "SIT232", "SIT316", "SIT378",
+    "SIT102",
+    "SIT103",
+    "SIT104",
+    "SIT202",
+    "SIT206",
+    "SIT210",
+    "SIT221",
+    "SIT305",
+    "SIT313",
+    "SIT374",
+    "SIT120",
+    "SIT153",
+    "SIT232",
+    "SIT316",
+    "SIT378",
   ],
   "Swinburne University of Technology": [
-    "COS10009", "COS10011", "COS20007", "COS20015", "COS30008",
-    "COS30015", "COS30043", "COS30049", "INF10003", "INF20012",
-    "COS20019", "COS30041", "COS40003", "INF30029", "COS40005",
+    "COS10009",
+    "COS10011",
+    "COS20007",
+    "COS20015",
+    "COS30008",
+    "COS30015",
+    "COS30043",
+    "COS30049",
+    "INF10003",
+    "INF20012",
+    "COS20019",
+    "COS30041",
+    "COS40003",
+    "INF30029",
+    "COS40005",
   ],
   "La Trobe University": [
-    "CSE1OFX", "CSE1PGX", "CSE2DCX", "CSE2CNX", "CSE2ALX",
-    "CSE3PAX", "CSE3PBX", "CSE3OSA", "CSE3DBX", "MAT1CLA",
-    "CSE1ITX", "CSE2SAX", "CSE3AGX", "CSE3WSX", "CSE3CAX",
+    "CSE1OFX",
+    "CSE1PGX",
+    "CSE2DCX",
+    "CSE2CNX",
+    "CSE2ALX",
+    "CSE3PAX",
+    "CSE3PBX",
+    "CSE3OSA",
+    "CSE3DBX",
+    "MAT1CLA",
+    "CSE1ITX",
+    "CSE2SAX",
+    "CSE3AGX",
+    "CSE3WSX",
+    "CSE3CAX",
   ],
 };
 
@@ -248,10 +379,8 @@ async function main() {
       ? {
           githubUrl: Math.random() > 0.3 ? `https://github.com/${slug}` : null,
           linkedInUrl:
-            Math.random() > 0.4
-              ? `https://linkedin.com/in/${slug}`
-              : null,
-          discordUrl:
+            Math.random() > 0.4 ? `https://linkedin.com/in/${slug}` : null,
+          discordUsername:
             Math.random() > 0.5
               ? `${firstName.toLowerCase()}#${randomInt(1000, 9999)}`
               : null,
@@ -330,7 +459,9 @@ async function main() {
   });
 
   await db.event.createMany({
-    data: eventSeeds.map(({ organiserIds: _, participantIds: __, ...rest }) => rest),
+    data: eventSeeds.map(
+      ({ organiserIds: _, participantIds: __, ...rest }) => rest,
+    ),
   });
 
   const eventRelationOps = eventSeeds.flatMap((e) => [
@@ -352,7 +483,9 @@ async function main() {
   for (let i = 0; i < eventRelationOps.length; i += BATCH_SIZE) {
     await db.$transaction(eventRelationOps.slice(i, i + BATCH_SIZE));
   }
-  console.log(`  Created ${eventSeeds.length} events with organisers & participants`);
+  console.log(
+    `  Created ${eventSeeds.length} events with organisers & participants`,
+  );
 
   console.log("Seeding connections...");
 

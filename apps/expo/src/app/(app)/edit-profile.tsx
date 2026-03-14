@@ -12,12 +12,12 @@ import {
   TextInput,
   View,
 } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
@@ -68,9 +68,7 @@ export default function EditProfileScreen() {
   const queryClient = useQueryClient();
   const { data: session } = authClient.useSession();
 
-  const { data: profile, isLoading } = useQuery(
-    trpc.user.getMe.queryOptions(),
-  );
+  const { data: profile, isLoading } = useQuery(trpc.user.getMe.queryOptions());
 
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
@@ -78,7 +76,7 @@ export default function EditProfileScreen() {
   const [units, setUnits] = useState<EnrolledUnit[]>([]);
   const [githubUrl, setGithubUrl] = useState("");
   const [linkedInUrl, setLinkedInUrl] = useState("");
-  const [discordUrl, setDiscordUrl] = useState("");
+  const [discordUsername, setdiscordUsername] = useState("");
 
   const [newUnitCode, setNewUnitCode] = useState("");
   const [newUnitUni, setNewUnitUni] = useState("");
@@ -96,11 +94,11 @@ export default function EditProfileScreen() {
       const socials = profile.socials as {
         githubUrl?: string;
         linkedInUrl?: string;
-        discordUrl?: string;
+        discordUsername?: string;
       } | null;
       setGithubUrl(socials?.githubUrl ?? "");
       setLinkedInUrl(socials?.linkedInUrl ?? "");
-      setDiscordUrl(socials?.discordUrl ?? "");
+      setdiscordUsername(socials?.discordUsername ?? "");
     }
   }, [profile]);
 
@@ -125,10 +123,19 @@ export default function EditProfileScreen() {
       socials: {
         githubUrl: githubUrl.trim() || null,
         linkedInUrl: linkedInUrl.trim() || null,
-        discordUrl: discordUrl.trim() || null,
+        discordUsername: discordUsername.trim() || null,
       },
     });
-  }, [displayName, bio, imageUrl, units, githubUrl, linkedInUrl, discordUrl, updateMutation]);
+  }, [
+    displayName,
+    bio,
+    imageUrl,
+    units,
+    githubUrl,
+    linkedInUrl,
+    discordUsername,
+    updateMutation,
+  ]);
 
   const handlePickImage = useCallback(async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -204,11 +211,14 @@ export default function EditProfileScreen() {
     setUnits((prev) => prev.filter((u) => u.code !== code));
   }, []);
 
-  const displayNameVal = displayName || profile?.name || session?.user?.name || "User";
+  const displayNameVal =
+    displayName || profile?.name || session?.user?.name || "User";
 
   if (isLoading && !profile) {
     return (
-      <View style={[styles.container, styles.centered, { paddingTop: insets.top }]}>
+      <View
+        style={[styles.container, styles.centered, { paddingTop: insets.top }]}
+      >
         <ActivityIndicator size="large" color="#6C3CE0" />
       </View>
     );
@@ -312,10 +322,7 @@ export default function EditProfileScreen() {
                     <Text style={styles.unitChipCode}>{unit.code}</Text>
                     <Text style={styles.unitChipUni}>{unit.university}</Text>
                   </View>
-                  <Pressable
-                    onPress={() => removeUnit(unit.code)}
-                    hitSlop={8}
-                  >
+                  <Pressable onPress={() => removeUnit(unit.code)} hitSlop={8}>
                     <Ionicons
                       name="close-circle"
                       size={18}
@@ -355,7 +362,11 @@ export default function EditProfileScreen() {
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Socials</Text>
           <GlassCard style={styles.socialInputCard}>
-            <Ionicons name="logo-github" size={18} color="rgba(255,255,255,0.5)" />
+            <Ionicons
+              name="logo-github"
+              size={18}
+              color="rgba(255,255,255,0.5)"
+            />
             <TextInput
               style={styles.socialInput}
               value={githubUrl}
@@ -368,7 +379,11 @@ export default function EditProfileScreen() {
             />
           </GlassCard>
           <GlassCard style={styles.socialInputCard}>
-            <Ionicons name="logo-linkedin" size={18} color="rgba(255,255,255,0.5)" />
+            <Ionicons
+              name="logo-linkedin"
+              size={18}
+              color="rgba(255,255,255,0.5)"
+            />
             <TextInput
               style={styles.socialInput}
               value={linkedInUrl}
@@ -381,11 +396,15 @@ export default function EditProfileScreen() {
             />
           </GlassCard>
           <GlassCard style={styles.socialInputCard}>
-            <Ionicons name="logo-discord" size={18} color="rgba(255,255,255,0.5)" />
+            <Ionicons
+              name="logo-discord"
+              size={18}
+              color="rgba(255,255,255,0.5)"
+            />
             <TextInput
               style={styles.socialInput}
-              value={discordUrl}
-              onChangeText={setDiscordUrl}
+              value={discordUsername}
+              onChangeText={setdiscordUsername}
               placeholder="Discord username"
               placeholderTextColor="rgba(255,255,255,0.25)"
               autoCapitalize="none"
