@@ -20,37 +20,10 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { GlassCard } from "~/components/GlassCard";
 import { trpc } from "~/utils/api";
 import { authClient } from "~/utils/auth";
 import { getBaseUrl } from "~/utils/base-url";
-
-let GlassView: React.ComponentType<any> | null = null;
-try {
-  GlassView = require("expo-glass-effect").GlassView;
-} catch {
-  GlassView = null;
-}
-
-function GlassCard({
-  children,
-  style,
-}: {
-  children: React.ReactNode;
-  style?: any;
-}) {
-  if (GlassView && Platform.OS === "ios") {
-    return (
-      <GlassView glassEffectStyle="regular" style={[styles.glassBase, style]}>
-        {children}
-      </GlassView>
-    );
-  }
-  return (
-    <View style={[styles.glassBase, styles.glassFallback, style]}>
-      {children}
-    </View>
-  );
-}
 
 function FormSection({
   label,
@@ -728,14 +701,5 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#FFFFFF",
     letterSpacing: 0.3,
-  },
-
-  glassBase: {
-    overflow: "hidden",
-  },
-  glassFallback: {
-    backgroundColor: "rgba(255, 255, 255, 0.06)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
   },
 });

@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
-  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -17,14 +16,9 @@ import { useRouter } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import FloatingOrbs from "~/components/FloatingOrbs";
+import { GlassCard } from "~/components/GlassCard";
 import { trpc } from "~/utils/api";
-
-let GlassView: React.ComponentType<any> | null = null;
-try {
-  GlassView = require("expo-glass-effect").GlassView;
-} catch {
-  GlassView = null;
-}
 
 const AVATAR_GRADIENTS: [string, string][] = [
   ["#6C3CE0", "#E04882"],
@@ -33,27 +27,6 @@ const AVATAR_GRADIENTS: [string, string][] = [
   ["#11998E", "#26D0CE"],
   ["#2D1B69", "#6C3CE0"],
 ];
-
-function GlassCard({
-  children,
-  style,
-}: {
-  children: React.ReactNode;
-  style?: any;
-}) {
-  if (GlassView && Platform.OS === "ios") {
-    return (
-      <GlassView glassEffectStyle="regular" style={[styles.glassBase, style]}>
-        {children}
-      </GlassView>
-    );
-  }
-  return (
-    <View style={[styles.glassBase, styles.glassFallback, style]}>
-      {children}
-    </View>
-  );
-}
 
 function getInitials(name: string): string {
   return name
@@ -420,6 +393,7 @@ export default function PeopleScreen() {
 
   return (
     <View style={styles.container}>
+      <FloatingOrbs opacity={0.5} />
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.pageTitle}>People</Text>
       </View>
@@ -661,14 +635,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
     maxWidth: 260,
     lineHeight: 20,
-  },
-
-  glassBase: {
-    overflow: "hidden",
-  },
-  glassFallback: {
-    backgroundColor: "rgba(255, 255, 255, 0.07)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
   },
 });

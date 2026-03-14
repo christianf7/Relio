@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
-  Dimensions,
-  Easing,
-  Platform,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -12,178 +10,14 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import FloatingOrbs from "~/components/FloatingOrbs";
+import { GlassCard, GlassPill } from "~/components/GlassCard";
 import { authClient } from "~/utils/auth";
-
-let GlassView: React.ComponentType<any> | null = null;
-try {
-  GlassView = require("expo-glass-effect").GlassView;
-} catch {
-  GlassView = null;
-}
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-
-function FloatingOrb({
-  delay,
-  startX,
-  startY,
-  size,
-  color,
-}: {
-  delay: number;
-  startX: number;
-  startY: number;
-  size: number;
-  color: string;
-}) {
-  const translateY = useRef(new Animated.Value(0)).current;
-  const translateX = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.8)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const fadeIn = Animated.timing(opacity, {
-      toValue: 0.7,
-      duration: 1200,
-      delay,
-      useNativeDriver: true,
-    });
-
-    const floatY = Animated.loop(
-      Animated.sequence([
-        Animated.timing(translateY, {
-          toValue: -30,
-          duration: 4000 + delay * 0.5,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateY, {
-          toValue: 30,
-          duration: 4000 + delay * 0.5,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-
-    const floatX = Animated.loop(
-      Animated.sequence([
-        Animated.timing(translateX, {
-          toValue: 20,
-          duration: 5000 + delay * 0.3,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateX, {
-          toValue: -20,
-          duration: 5000 + delay * 0.3,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(scale, {
-          toValue: 1.15,
-          duration: 3000 + delay * 0.4,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(scale, {
-          toValue: 0.85,
-          duration: 3000 + delay * 0.4,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-
-    fadeIn.start();
-    floatY.start();
-    floatX.start();
-    pulse.start();
-
-    return () => {
-      fadeIn.stop();
-      floatY.stop();
-      floatX.stop();
-      pulse.stop();
-    };
-  }, []);
-
-  return (
-    <Animated.View
-      style={[
-        {
-          position: "absolute",
-          left: startX,
-          top: startY,
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          opacity,
-          transform: [{ translateY }, { translateX }, { scale }],
-        },
-      ]}
-    >
-      <LinearGradient
-        colors={[color, `${color}00`]}
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-        }}
-        start={{ x: 0.3, y: 0.1 }}
-        end={{ x: 0.8, y: 0.9 }}
-      />
-    </Animated.View>
-  );
-}
 
 function LinkedInIcon() {
   return (
     <View style={styles.linkedinIcon}>
       <Text style={styles.linkedinIconText}>in</Text>
-    </View>
-  );
-}
-
-function GlassCard({ children, style }: { children: React.ReactNode; style?: any }) {
-  if (GlassView && Platform.OS === "ios") {
-    return (
-      <GlassView
-        glassEffectStyle="regular"
-        style={[styles.glassCardBase, style]}
-      >
-        {children}
-      </GlassView>
-    );
-  }
-
-  return (
-    <View style={[styles.glassCardBase, styles.glassCardFallback, style]}>
-      {children}
-    </View>
-  );
-}
-
-function GlassPill({ children, style }: { children: React.ReactNode; style?: any }) {
-  if (GlassView && Platform.OS === "ios") {
-    return (
-      <GlassView
-        glassEffectStyle="clear"
-        style={[styles.glassPillBase, style]}
-      >
-        {children}
-      </GlassView>
-    );
-  }
-
-  return (
-    <View style={[styles.glassPillBase, styles.glassPillFallback, style]}>
-      {children}
     </View>
   );
 }
@@ -266,11 +100,7 @@ export default function SignInScreen() {
         end={{ x: 0.8, y: 1 }}
       />
 
-      <FloatingOrb delay={0} startX={-40} startY={SCREEN_HEIGHT * 0.12} size={220} color="#6C3CE0" />
-      <FloatingOrb delay={200} startX={SCREEN_WIDTH * 0.55} startY={SCREEN_HEIGHT * 0.06} size={180} color="#E04882" />
-      <FloatingOrb delay={400} startX={SCREEN_WIDTH * 0.15} startY={SCREEN_HEIGHT * 0.4} size={160} color="#4880E0" />
-      <FloatingOrb delay={600} startX={SCREEN_WIDTH * 0.6} startY={SCREEN_HEIGHT * 0.55} size={200} color="#6C3CE0" />
-      <FloatingOrb delay={300} startX={SCREEN_WIDTH * 0.3} startY={SCREEN_HEIGHT * 0.75} size={140} color="#E04882" />
+      <FloatingOrbs />
 
       <View style={[styles.content, { paddingTop: insets.top + 60, paddingBottom: insets.bottom + 40 }]}>
         <Animated.View
@@ -283,7 +113,10 @@ export default function SignInScreen() {
           ]}
         >
           <GlassCard style={styles.logoContainer}>
-            <Text style={styles.logoMark}>R</Text>
+              <Image
+                source={{ uri: "https://relio-cdn.chrisfitz.dev/relio.png" }}
+                style={{ width: 88, height: 88 }}
+              />
           </GlassCard>
 
           <Text style={styles.appName}>Relio</Text>
@@ -469,22 +302,5 @@ const styles = StyleSheet.create({
     color: "rgba(255, 255, 255, 0.45)",
     fontWeight: "500",
     letterSpacing: 0.3,
-  },
-
-  glassCardBase: {
-    overflow: "hidden",
-  },
-  glassCardFallback: {
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.12)",
-  },
-  glassPillBase: {
-    overflow: "hidden",
-  },
-  glassPillFallback: {
-    backgroundColor: "rgba(255, 255, 255, 0.06)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
   },
 });
