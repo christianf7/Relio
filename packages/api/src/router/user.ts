@@ -60,6 +60,7 @@ export const userRouter = {
         displayName: z.string().min(1).optional(),
         bio: z.string().nullable().optional(),
         image: z.string().nullable().optional(),
+        bannerUrl: z.string().nullable().optional(),
         enrolledUnits: z
           .array(
             z.object({

@@ -46,6 +46,7 @@ export default function EditProfileScreen() {
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [bannerUrl, setBannerUrl] = useState<string | null>(null);
   const [units, setUnits] = useState<EnrolledUnit[]>([]);
   const [githubUrl, setGithubUrl] = useState("");
   const [linkedInUrl, setLinkedInUrl] = useState("");
@@ -54,12 +55,14 @@ export default function EditProfileScreen() {
   const [newUnitCode, setNewUnitCode] = useState("");
   const [newUnitUni, setNewUnitUni] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [isBannerUploading, setIsBannerUploading] = useState(false);
 
   useEffect(() => {
     if (profile) {
       setDisplayName(profile.displayName ?? profile.name ?? "");
       setBio(profile.bio ?? "");
       setImageUrl(profile.image ?? null);
+      setBannerUrl((profile as any).bannerUrl ?? null);
       const parsed = Array.isArray(profile.enrolledUnits)
         ? (profile.enrolledUnits as EnrolledUnit[])
         : [];
@@ -92,6 +95,7 @@ export default function EditProfileScreen() {
       displayName: displayName.trim() || undefined,
       bio: bio.trim() || null,
       image: imageUrl,
+      bannerUrl,
       enrolledUnits: units,
       socials: {
         githubUrl: githubUrl.trim() || null,
@@ -103,6 +107,7 @@ export default function EditProfileScreen() {
     displayName,
     bio,
     imageUrl,
+    bannerUrl,
     units,
     githubUrl,
     linkedInUrl,
@@ -161,6 +166,60 @@ export default function EditProfileScreen() {
       Alert.alert("Upload Failed", "Could not upload your image. Try again.");
     } finally {
       setIsUploading(false);
+    }
+  }, []);
+
+  const handlePickBanner = useCallback(async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+
+    if (result.canceled || !result.assets[0]) return;
+
+    const asset = result.assets[0];
+    setIsBannerUploading(true);
+
+    try {
+      const filename = asset.uri.split("/").pop() ?? "banner.jpg";
+      const ext = filename.split(".").pop() ?? "jpg";
+      const contentType = `image/${ext === "jpg" ? "jpeg" : ext}`;
+
+      const cookies = authClient.getCookie();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (cookies) headers["Cookie"] = cookies;
+
+      const res = await fetch(`${getBaseUrl()}/api/upload`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ filename, contentType, folder: "banners" }),
+      });
+
+      if (!res.ok) throw new Error("Failed to get upload URL");
+
+      const { uploadUrl, publicUrl } = (await res.json()) as {
+        uploadUrl: string;
+        publicUrl: string;
+      };
+
+      const imageResponse = await fetch(asset.uri);
+      const blob = await imageResponse.blob();
+
+      await fetch(uploadUrl, {
+        method: "PUT",
+        body: blob,
+        headers: { "Content-Type": contentType },
+      });
+
+      setBannerUrl(publicUrl);
+    } catch {
+      Alert.alert("Upload Failed", "Could not upload the banner image. Try again.");
+    } finally {
+      setIsBannerUploading(false);
     }
   }, []);
 
@@ -225,6 +284,52 @@ export default function EditProfileScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Banner */}
+        <Pressable onPress={handlePickBanner} style={styles.bannerPicker} disabled={isBannerUploading}>
+          {bannerUrl ? (
+            <View style={styles.bannerPreview}>
+              <Image source={{ uri: bannerUrl }} style={styles.bannerImage} />
+              {isBannerUploading && (
+                <View style={styles.bannerOverlay}>
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <Text style={styles.bannerOverlayText}>Uploading...</Text>
+                </View>
+              )}
+              <View style={styles.bannerEditBadge}>
+                <Ionicons name="camera" size={14} color="#FFFFFF" />
+              </View>
+            </View>
+          ) : (
+            <LinearGradient
+              colors={["#1A1530", "#120F24"]}
+              style={styles.bannerPlaceholder}
+            >
+              {isBannerUploading ? (
+                <>
+                  <ActivityIndicator size="small" color="rgba(255,255,255,0.6)" />
+                  <Text style={styles.bannerPlaceholderText}>Uploading...</Text>
+                </>
+              ) : (
+                <>
+                  <View style={styles.bannerIconCircle}>
+                    <Ionicons
+                      name="image-outline"
+                      size={28}
+                      color="rgba(255,255,255,0.4)"
+                    />
+                  </View>
+                  <Text style={styles.bannerPlaceholderText}>
+                    Add Profile Banner
+                  </Text>
+                  <Text style={styles.bannerPlaceholderHint}>
+                    Tap to choose a photo
+                  </Text>
+                </>
+              )}
+            </LinearGradient>
+          )}
+        </Pressable>
+
         {/* Avatar */}
         <View style={styles.avatarSection}>
           <Pressable onPress={handlePickImage} disabled={isUploading}>
@@ -452,6 +557,74 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 2,
     borderColor: "#0A0A1A",
+  },
+
+  bannerPicker: {
+    borderRadius: 20,
+    overflow: "hidden",
+    marginBottom: 20,
+  },
+  bannerPlaceholder: {
+    height: 160,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderStyle: "dashed",
+    gap: 8,
+  },
+  bannerIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "rgba(108, 60, 224, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  bannerPlaceholderText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "rgba(255, 255, 255, 0.6)",
+  },
+  bannerPlaceholderHint: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.3)",
+  },
+  bannerPreview: {
+    height: 160,
+    borderRadius: 20,
+    overflow: "hidden",
+    position: "relative",
+  },
+  bannerImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  bannerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+  },
+  bannerOverlayText: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.8)",
+    fontWeight: "500",
+  },
+  bannerEditBadge: {
+    position: "absolute",
+    bottom: 12,
+    right: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   fieldGroup: {
