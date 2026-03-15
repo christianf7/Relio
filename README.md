@@ -29,6 +29,8 @@ Relio helps people discover events, meet nearby peers, and connect instantly wit
 - Structured onboarding with role selection
 - Profile management with social links and course metadata
 
+- For more information on the elastic implementation, see the ELASTICSEARCH.md
+
 ## Monorepo Layout
 
 ```text
