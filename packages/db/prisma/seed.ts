@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { PrismaClient } from "@prisma/client";
-import { es, USERS_INDEX, EVENTS_INDEX } from "@acme/es";
+import { es, USERS_INDEX, EVENTS_INDEX, indexEvent, indexUser } from "@acme/es";
 
 const db = new PrismaClient();
 
@@ -425,15 +425,32 @@ const MESSAGE_TEMPLATES = [
 ];
 
 async function main() {
-  console.log("Clearing existing seed data...");
+  console.log("Preserving real users, clearing seed data...");
+
+  const realUsers = await db.user.findMany({
+    where: { accounts: { some: {} } },
+    select: { id: true, name: true, email: true },
+  });
+  const realUserIds = new Set(realUsers.map((u) => u.id));
+  console.log(`  Found ${realUsers.length} real user(s) to preserve`);
+
   await db.$transaction([
-    db.message.deleteMany(),
-    db.connectionRequest.deleteMany(),
-    db.event.deleteMany(),
-    db.session.deleteMany(),
-    db.account.deleteMany(),
-    db.verification.deleteMany(),
-    db.user.deleteMany(),
+    db.message.deleteMany({ where: { sender: { accounts: { none: {} } } } }),
+    db.connectionRequest.deleteMany({
+      where: {
+        AND: [
+          { senderId: { notIn: [...realUserIds] } },
+          { receiverId: { notIn: [...realUserIds] } },
+        ],
+      },
+    }),
+    db.eventCheckIn.deleteMany({ where: { userId: { notIn: [...realUserIds] } } }),
+    db.event.deleteMany({
+      where: {
+        organisers: { none: { id: { in: [...realUserIds] } } },
+      },
+    }),
+    db.user.deleteMany({ where: { accounts: { none: {} } } }),
   ]);
 
   if (es) {
@@ -521,6 +538,7 @@ async function main() {
       socials: socials as any,
       image: avatarUrl,
       enrolledUnits: enrolledUnits as any,
+      onboardingCompleted: true,
       createdAt,
       updatedAt: new Date(),
     };
@@ -562,6 +580,15 @@ async function main() {
     const numParticipants = randomInt(3, Math.min(15, remainingUsers.length));
     const participants = pickN(remainingUsers, numParticipants);
 
+    const participantIds: string[] = participants.map((u) => u.id);
+    if (realUsers.length > 0 && Math.random() > 0.3) {
+      for (const ru of realUsers) {
+        if (!participantIds.includes(ru.id) && !organisers.some((o) => o.id === ru.id)) {
+          participantIds.push(ru.id);
+        }
+      }
+    }
+
     return {
       id: randomUUID(),
       title,
@@ -570,7 +597,7 @@ async function main() {
       bannerUrl: EVENT_BANNER_URLS[i % EVENT_BANNER_URLS.length]!,
       content: EVENT_DESCRIPTIONS[i] ?? null,
       organiserIds: organisers.map((u) => u.id),
-      participantIds: participants.map((u) => u.id),
+      participantIds,
     };
   });
 
@@ -643,6 +670,34 @@ async function main() {
     }
   }
 
+  if (realUsers.length > 0) {
+    const connectToReal = pickN(users, Math.min(10, users.length));
+    for (const ru of realUsers) {
+      for (const seedUser of connectToReal) {
+        const pairKey = [ru.id, seedUser.id].sort().join(":");
+        if (connectionPairs.has(pairKey)) continue;
+        connectionPairs.add(pairKey);
+
+        connectionOps.push(
+          db.user.update({
+            where: { id: ru.id },
+            data: { connections: { connect: { id: seedUser.id } } },
+          }),
+        );
+
+        connectionRequestData.push({
+          senderId: seedUser.id,
+          receiverId: ru.id,
+          status: "ACCEPTED",
+          createdAt: randomDate(
+            new Date(now.getFullYear(), now.getMonth() - 4, 1),
+            now,
+          ),
+        });
+      }
+    }
+  }
+
   for (let i = 0; i < connectionOps.length; i += BATCH_SIZE) {
     await db.$transaction(connectionOps.slice(i, i + BATCH_SIZE));
   }
@@ -673,6 +728,26 @@ async function main() {
       status: "PENDING",
       message: Math.random() > 0.4 ? pick(MESSAGE_TEMPLATES) : null,
     });
+  }
+
+  if (realUsers.length > 0) {
+    const pendingSenders = pickN(
+      users.filter((u) => !connectionPairs.has([realUsers[0]!.id, u.id].sort().join(":"))),
+      5,
+    );
+    for (const ru of realUsers) {
+      for (const sender of pendingSenders) {
+        const pairKey = [sender.id, ru.id].sort().join(":");
+        if (connectionPairs.has(pairKey) || pendingPairs.has(pairKey)) continue;
+        pendingPairs.add(pairKey);
+        pendingData.push({
+          senderId: sender.id,
+          receiverId: ru.id,
+          status: "PENDING",
+          message: Math.random() > 0.4 ? pick(MESSAGE_TEMPLATES) : null,
+        });
+      }
+    }
   }
 
   await db.connectionRequest.createMany({ data: pendingData });
@@ -736,6 +811,36 @@ async function main() {
 
   await db.message.createMany({ data: [...dmMessages, ...eventMessages] });
   console.log(`  Created ${dmMessages.length + eventMessages.length} messages`);
+
+  if (es) {
+    console.log("Indexing all data in Elasticsearch...");
+
+    const allEvents = await db.event.findMany({
+      include: {
+        organisers: { select: { id: true, name: true } },
+        participants: { select: { id: true } },
+      },
+    });
+    for (const event of allEvents) {
+      await indexEvent(es, event);
+    }
+    console.log(`  Indexed ${allEvents.length} events`);
+
+    const allUsers = await db.user.findMany({
+      include: {
+        connections: { select: { id: true } },
+        connectedBy: { select: { id: true } },
+        upcomingEvents: { select: { id: true } },
+        organisedEvents: { select: { id: true } },
+      },
+    });
+    for (const user of allUsers) {
+      await indexUser(es, user);
+    }
+    console.log(`  Indexed ${allUsers.length} users`);
+  } else {
+    console.warn("Elasticsearch not available – skipping indexing");
+  }
 
   console.log("\nSeed complete!");
 }

@@ -726,7 +726,7 @@ export const eventRouter = {
         });
       }
 
-      const existing = await (ctx.db as any).eventCheckIn.findUnique({
+      const existing = await ctx.db.eventCheckIn.findUnique({
         where: { eventId_userId: { eventId: input.eventId, userId: ctx.session.user.id } },
       });
 
@@ -734,7 +734,7 @@ export const eventRouter = {
         return { alreadyCheckedIn: true, event: { id: event.id, title: event.title } };
       }
 
-      await (ctx.db as any).eventCheckIn.create({
+      await ctx.db.eventCheckIn.create({
         data: { eventId: input.eventId, userId: ctx.session.user.id },
       });
 
@@ -744,7 +744,7 @@ export const eventRouter = {
   getCheckedInUsers: protectedProcedure
     .input(z.object({ eventId: z.string() }))
     .query(async ({ ctx, input }) => {
-      const checkIns = await (ctx.db as any).eventCheckIn.findMany({
+      const checkIns = await ctx.db.eventCheckIn.findMany({
         where: { eventId: input.eventId },
         orderBy: { checkedInAt: "desc" },
         include: {
@@ -754,7 +754,7 @@ export const eventRouter = {
         },
       });
 
-      return checkIns.map((ci: any) => ({
+      return checkIns.map((ci) => ({
         id: ci.user.id,
         name: ci.user.displayName ?? ci.user.name,
         image: ci.user.image ?? ci.user.avatarUrl,
@@ -766,10 +766,10 @@ export const eventRouter = {
     .input(z.object({ eventId: z.string() }))
     .query(async ({ ctx, input }) => {
       const [myCheckIn, totalCount] = await Promise.all([
-        (ctx.db as any).eventCheckIn.findUnique({
+        ctx.db.eventCheckIn.findUnique({
           where: { eventId_userId: { eventId: input.eventId, userId: ctx.session.user.id } },
         }),
-        (ctx.db as any).eventCheckIn.count({ where: { eventId: input.eventId } }),
+        ctx.db.eventCheckIn.count({ where: { eventId: input.eventId } }),
       ]);
 
       return {
@@ -782,14 +782,14 @@ export const eventRouter = {
   checkOut: protectedProcedure
     .input(z.object({ eventId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      await (ctx.db as any).eventCheckIn.deleteMany({
+      await ctx.db.eventCheckIn.deleteMany({
         where: { eventId: input.eventId, userId: ctx.session.user.id },
       });
       return { success: true };
     }),
 
   getMyActiveCheckIn: protectedProcedure.query(async ({ ctx }) => {
-    const checkIn = await (ctx.db as any).eventCheckIn.findFirst({
+    const checkIn = await ctx.db.eventCheckIn.findFirst({
       where: {
         userId: ctx.session.user.id,
       },

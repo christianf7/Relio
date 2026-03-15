@@ -1,3 +1,15 @@
 {
-  "expo": {}
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "4c31f22a-0340-46ff-b480-4c8ce50b0dae"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.christianfdev.createt3turbo",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
 }

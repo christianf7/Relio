@@ -110,6 +110,7 @@ export default function OnboardingScreen() {
   const [newUnitCode, setNewUnitCode] = useState("");
   const [newUnitUni, setNewUnitUni] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [isBannerUploading, setIsBannerUploading] = useState(false);
   const linkedInLocked = Boolean((profile as any)?.linkedInLocked);
 
   // Role selection

@@ -1,5 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
-import { createTRPCClient, httpBatchLink, loggerLink } from "@trpc/client";
+import { createTRPCClient, httpLink, loggerLink } from "@trpc/client";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import superjson from "superjson";
 
@@ -11,7 +11,9 @@ import { getBaseUrl } from "./base-url";
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // ...
+      staleTime: 30 * 1000,
+      gcTime: 5 * 60 * 1000,
+      retry: 2,
     },
   },
 });
@@ -28,7 +30,7 @@ export const trpc = createTRPCOptionsProxy<AppRouter>({
           (opts.direction === "down" && opts.result instanceof Error),
         colorMode: "ansi",
       }),
-      httpBatchLink({
+      httpLink({
         transformer: superjson,
         url: `${getBaseUrl()}/api/trpc`,
         headers() {

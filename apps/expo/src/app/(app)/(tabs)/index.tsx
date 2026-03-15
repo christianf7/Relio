@@ -531,7 +531,7 @@ export default function HomeScreen() {
   });
 
   const checkOutMutation = useMutation(
-    (trpc as any).event.checkOut.mutationOptions(),
+    trpc.event.checkOut.mutationOptions(),
   );
 
   const handleCheckOut = useCallback(() => {

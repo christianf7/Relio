@@ -159,6 +159,7 @@ export function InAppNotificationProvider({
     Map<string, { lastMessageAt: number; lastMessageSenderId: string }> | null
   >(null);
   const isInitializedRef = useRef(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pathnameRef = useRef(pathname);
 
   useEffect(() => {
@@ -314,9 +315,15 @@ export function InAppNotificationProvider({
       return;
     }
 
-    poll();
-    const interval = setInterval(poll, POLL_INTERVAL);
-    return () => clearInterval(interval);
+    const startupDelay = setTimeout(() => {
+      poll();
+      intervalRef.current = setInterval(poll, POLL_INTERVAL);
+    }, 3000);
+
+    return () => {
+      clearTimeout(startupDelay);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, [userId, poll]);
 
   return (
