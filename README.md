@@ -24,10 +24,12 @@ Relio helps people discover events, meet nearby peers, and connect instantly wit
 
 - Instant QR-based profile and event connections
 - Event creation, discovery, and attendance flow
-- People discovery and connection requests
+- People discovery and connection requests powered by Elastic search
 - 1:1 messaging and event chat
 - Structured onboarding with role selection
 - Profile management with social links and course metadata
+
+- For more information on the elastic implementation, see the ELASTICSEARCH.md
 
 ## Monorepo Layout
 
@@ -73,6 +75,8 @@ pnpm es:ensure-indices
 
 # 6) Run all apps/packages in watch mode
 pnpm dev
+
+Optionally you can also seed with pnpm db:seed & pnpm es:seed to fill with test data.
 ```
 
 ## Useful Commands
