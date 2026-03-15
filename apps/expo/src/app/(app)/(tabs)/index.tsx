@@ -349,6 +349,135 @@ function SectionHeader({ title }: { title: string }) {
   );
 }
 
+const MemoSuggestedCard = memo(function SuggestedCard({
+  event,
+  index,
+  organiserLabel,
+  onPress,
+}: {
+  event: {
+    id: string;
+    title: string;
+    date: Date | string;
+    bannerUrl: string | null;
+    reason: string;
+    connectionsGoingCount: number;
+    participantCount: number;
+  };
+  index: number;
+  organiserLabel: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable style={styles.suggestedCard} onPress={onPress}>
+      {event.bannerUrl ? (
+        <Image
+          source={{ uri: event.bannerUrl }}
+          style={styles.suggestedImage}
+        />
+      ) : (
+        <LinearGradient
+          colors={SUGGESTED_GRADIENTS[index % SUGGESTED_GRADIENTS.length]!}
+          style={styles.suggestedImage}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <View
+            style={[
+              styles.decorCircle,
+              { width: 50, height: 50, borderRadius: 25, top: 15, right: 15 },
+            ]}
+          />
+          <View
+            style={[
+              styles.decorCircle,
+              {
+                width: 70,
+                height: 70,
+                borderRadius: 35,
+                bottom: -20,
+                left: 20,
+                opacity: 0.06,
+              },
+            ]}
+          />
+        </LinearGradient>
+      )}
+      <View style={styles.suggestedInfo}>
+        {event.reason ? (
+          <View style={styles.suggestedReasonRow}>
+            <Ionicons
+              name={event.connectionsGoingCount > 0 ? "people" : "school"}
+              size={11}
+              color="#6C3CE0"
+            />
+            <Text style={styles.suggestedReasonText} numberOfLines={1}>
+              {event.reason}
+            </Text>
+          </View>
+        ) : (
+          <Text style={styles.suggestedOrganiser}>{organiserLabel}</Text>
+        )}
+        <Text style={styles.suggestedTitle} numberOfLines={1}>
+          {event.title}
+        </Text>
+        <View style={styles.suggestedMeta}>
+          <Text style={styles.suggestedDate}>{formatDate(event.date)}</Text>
+          <View style={styles.suggestedDot} />
+          <Text style={styles.suggestedAttendees}>
+            {event.participantCount} going
+          </Text>
+        </View>
+      </View>
+    </Pressable>
+  );
+});
+
+const MemoPersonCard = memo(function PersonCard({
+  person,
+  index,
+  onPress,
+}: {
+  person: {
+    id: string;
+    name: string;
+    displayName: string | null;
+    image: string | null;
+    avatarUrl: string | null;
+    metAt: string;
+  };
+  index: number;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable style={styles.personCard} onPress={onPress}>
+      {(person.image ?? person.avatarUrl) ? (
+        <Image
+          source={{ uri: (person.image ?? person.avatarUrl)! }}
+          style={styles.personAvatar}
+        />
+      ) : (
+        <LinearGradient
+          colors={AVATAR_GRADIENTS[index % AVATAR_GRADIENTS.length]!}
+          style={styles.personAvatar}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Text style={styles.personInitials}>
+            {getInitials(person.name)}
+          </Text>
+        </LinearGradient>
+      )}
+      <Text style={styles.personName} numberOfLines={1}>
+        {person.displayName ?? person.name}
+      </Text>
+      <Text style={styles.personMetAt} numberOfLines={1}>
+        Met at {person.metAt}
+      </Text>
+    </Pressable>
+  );
+});
+
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -392,8 +521,11 @@ export default function HomeScreen() {
 
   const activeEventId = (activeCheckIn as any)?.event?.id as string | undefined;
 
+  const checkedInUsersQuery = trpc.event.getCheckedInUsers.queryOptions({
+    eventId: activeEventId ?? "",
+  });
   const { data: checkedInUsers = [] } = useQuery({
-    ...trpc.event.getCheckedInUsers.queryOptions({ eventId: activeEventId! }),
+    ...checkedInUsersQuery,
     enabled: !!activeEventId,
     refetchInterval: 10000,
   });
@@ -435,8 +567,11 @@ export default function HomeScreen() {
     );
   }, [showTakeover, checkedInUsers, insets.top]);
 
+  const selectedEventQuery = trpc.event.getById.queryOptions({
+    id: selectedEventId ?? "",
+  });
   const { data: selectedEvent, isLoading: isLoadingSelected } = useQuery({
-    ...trpc.event.getById.queryOptions({ id: selectedEventId! }),
+    ...selectedEventQuery,
     enabled: !!selectedEventId,
   });
 
@@ -509,6 +644,18 @@ export default function HomeScreen() {
       minute: "2-digit",
     });
   };
+
+  const organiserLabels = useMemo(() => {
+    const labels: Record<string, string> = {};
+    for (const event of suggestedEvents) {
+      const names: string[] = [];
+      for (const o of event.organisers) {
+        names.push(o.name);
+      }
+      labels[event.id] = names.join(", ");
+    }
+    return labels;
+  }, [suggestedEvents]);
 
   const actionPending = joinMutation.isPending || leaveMutation.isPending;
   const isRefetchingHome =
@@ -814,35 +961,12 @@ export default function HomeScreen() {
             contentContainerStyle={styles.horizontalScroll}
           >
             {peopleToConnect.map((person, index) => (
-              <Pressable
+              <MemoPersonCard
                 key={person.id}
-                style={styles.personCard}
+                person={person}
+                index={index}
                 onPress={() => router.push(`/(app)/user/${person.id}` as any)}
-              >
-                {(person.image ?? person.avatarUrl) ? (
-                  <Image
-                    source={{ uri: (person.image ?? person.avatarUrl)! }}
-                    style={styles.personAvatar}
-                  />
-                ) : (
-                  <LinearGradient
-                    colors={AVATAR_GRADIENTS[index % AVATAR_GRADIENTS.length]!}
-                    style={styles.personAvatar}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <Text style={styles.personInitials}>
-                      {getInitials(person.name)}
-                    </Text>
-                  </LinearGradient>
-                )}
-                <Text style={styles.personName} numberOfLines={1}>
-                  {person.displayName ?? person.name}
-                </Text>
-                <Text style={styles.personMetAt} numberOfLines={1}>
-                  Met at {person.metAt}
-                </Text>
-              </Pressable>
+              />
             ))}
             {peopleToConnect.length === 0 && (
               <View style={styles.noPeopleCard}>
@@ -863,9 +987,11 @@ export default function HomeScreen() {
               contentContainerStyle={styles.horizontalScroll}
             >
               {suggestedEvents.map((event, index) => (
-                <Pressable
+                <MemoSuggestedCard
                   key={event.id}
-                  style={styles.suggestedCard}
+                  event={event}
+                  index={index}
+                  organiserLabel={organiserLabels[event.id] ?? ""}
                   onPress={() => {
                     setSelectedEventId(event.id);
                     setSelectedRecommendation({
@@ -873,86 +999,7 @@ export default function HomeScreen() {
                       signals: event.recommendationSignals,
                     });
                   }}
-                >
-                  {event.bannerUrl ? (
-                    <Image
-                      source={{ uri: event.bannerUrl }}
-                      style={styles.suggestedImage}
-                    />
-                  ) : (
-                    <LinearGradient
-                      colors={
-                        SUGGESTED_GRADIENTS[index % SUGGESTED_GRADIENTS.length]!
-                      }
-                      style={styles.suggestedImage}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                    >
-                      <View
-                        style={[
-                          styles.decorCircle,
-                          {
-                            width: 50,
-                            height: 50,
-                            borderRadius: 25,
-                            top: 15,
-                            right: 15,
-                          },
-                        ]}
-                      />
-                      <View
-                        style={[
-                          styles.decorCircle,
-                          {
-                            width: 70,
-                            height: 70,
-                            borderRadius: 35,
-                            bottom: -20,
-                            left: 20,
-                            opacity: 0.06,
-                          },
-                        ]}
-                      />
-                    </LinearGradient>
-                  )}
-                  <View style={styles.suggestedInfo}>
-                    {event.reason ? (
-                      <View style={styles.suggestedReasonRow}>
-                        <Ionicons
-                          name={
-                            event.connectionsGoingCount > 0
-                              ? "people"
-                              : "school"
-                          }
-                          size={11}
-                          color="#6C3CE0"
-                        />
-                        <Text
-                          style={styles.suggestedReasonText}
-                          numberOfLines={1}
-                        >
-                          {event.reason}
-                        </Text>
-                      </View>
-                    ) : (
-                      <Text style={styles.suggestedOrganiser}>
-                        {event.organisers.map((o: any) => o.name).join(", ")}
-                      </Text>
-                    )}
-                    <Text style={styles.suggestedTitle} numberOfLines={1}>
-                      {event.title}
-                    </Text>
-                    <View style={styles.suggestedMeta}>
-                      <Text style={styles.suggestedDate}>
-                        {formatDate(event.date)}
-                      </Text>
-                      <View style={styles.suggestedDot} />
-                      <Text style={styles.suggestedAttendees}>
-                        {event.participants.length} going
-                      </Text>
-                    </View>
-                  </View>
-                </Pressable>
+                />
               ))}
             </ScrollView>
           ) : (

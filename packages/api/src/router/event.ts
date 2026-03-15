@@ -36,13 +36,12 @@ export const eventRouter = {
         },
       },
       orderBy: { date: "asc" },
-      include: {
-        organisers: {
-          select: { id: true, name: true },
-        },
-        participants: {
-          select: { id: true },
-        },
+      select: {
+        id: true,
+        title: true,
+        date: true,
+        location: true,
+        bannerUrl: true,
       },
     });
   }),
@@ -350,7 +349,7 @@ export const eventRouter = {
           location: event.location,
           bannerUrl: event.bannerUrl,
           organisers: event.organisers,
-          participants: event.participants.map((p) => ({ id: p.id })),
+          participantCount: event.participants.length,
           reason,
           connectionsGoingCount: connectionsGoing.length,
           unitPeersGoingCount: unitPeersGoing.length,
@@ -964,7 +963,7 @@ async function fallbackSuggestedEvents(
       location: event.location,
       bannerUrl: event.bannerUrl,
       organisers: event.organisers,
-      participants: event.participants.map((p: any) => ({ id: p.id })),
+      participantCount: event.participants.length,
       reason,
       connectionsGoingCount: connectionsGoing.length,
       unitPeersGoingCount: unitPeersGoing.length,
